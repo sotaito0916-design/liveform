@@ -8,37 +8,67 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav>
-  <a href="form.html">フォーム提出</a>
-  <a href="table.html">きっかけ表</a>
-  <a href="admin.html" class="active">ライブ管理</a>
-  <div class="nav-right">
-    <span class="nav-user" id="nav-user"></span>
-    <button class="btn-sm" onclick="logout()">ログアウト</button>
-  </div>
-</nav>
 <main>
-  <div id="login-screen" style="max-width:320px;margin:4rem auto;text-align:center;">
-    <h2 style="margin-bottom:16px;">管理者ログイン</h2>
-    <input type="password" id="pw-input" placeholder="パスワード" onkeydown="if(event.key==='Enter') login()">
-    <button onclick="login()" class="btn-primary" style="margin-top:12px;width:100%;">ログイン</button>
+  <!-- ログイン画面 -->
+  <div id="login-screen" style="max-width:320px;margin:4rem auto;text-align:center;padding:0 1rem;">
+    <h1 style="margin-bottom:8px;">ライブ管理</h1>
+    <p style="color:#888;font-size:13px;margin-bottom:24px;">管理者専用ページ</p>
+    <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:24px;">
+      <div class="field"><label>パスワード</label><input type="password" id="pw-input" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter') login()"></div>
+      <button onclick="login()" class="btn-primary" style="width:100%;">ログイン</button>
+      <p id="pw-error" style="color:#dc3545;font-size:13px;margin-top:10px;display:none;">パスワードが違います</p>
+    </div>
   </div>
-  <div id="admin-screen" style="display:none;max-width:560px;">
-    <h1 style="margin-bottom:20px;">ライブ管理</h1>
+
+  <!-- 管理画面 -->
+  <div id="admin-screen" style="display:none;max-width:640px;margin:0 auto;padding:1.5rem 1rem 4rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h1>ライブ管理</h1>
+      <button onclick="doLogout()" class="btn-sm">ログアウト</button>
+    </div>
+
+    <!-- ライブ追加フォーム -->
     <div class="card" style="margin-bottom:24px;">
-      <p class="hint" style="margin-bottom:12px;">新しいライブを追加</p>
+      <h3 id="form-title" style="margin-bottom:16px;">新しいライブを追加</h3>
+      <input type="hidden" id="edit-live-id">
       <div class="field">
         <label>ライブ名 <span class="req">*</span></label>
-        <input id="live-name" placeholder="例: vol.2 きっかけ確認">
+        <input id="live-name" placeholder="例: 新歓ライブ vol.2">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-        <div class="field"><label>開催日</label><input type="date" id="live-date"></div>
-        <div class="field"><label>提出締切</label><input type="datetime-local" id="live-deadline"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div class="field" style="margin-bottom:0;"><label>開催日</label><input type="date" id="live-date"></div>
+        <div class="field" style="margin-bottom:0;"><label>提出締切</label><input type="datetime-local" id="live-deadline"></div>
       </div>
-      <button onclick="addLive()" class="btn-primary" style="width:100%;">ライブを作成</button>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveLive()" class="btn-primary" id="save-btn" style="flex:1;">ライブを作成</button>
+        <button onclick="cancelEdit()" id="cancel-btn" style="display:none;">キャンセル</button>
+      </div>
     </div>
+
+    <!-- ライブ一覧 -->
     <p class="hint" id="live-count" style="margin-bottom:12px;"></p>
     <div id="live-list"></div>
+
+    <!-- きっかけ表プレビュー -->
+    <div id="entries-section" style="display:none;margin-top:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 id="entries-title" style="margin-bottom:0;"></h2>
+        <button onclick="closeEntries()" class="btn-sm">閉じる</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="kikkake-table" id="entries-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>出番</th><th>コンビ名</th><th>形式</th><th>道具</th><th>板付</th>
+              <th>音響</th><th>照明</th><th>明転</th><th>暗転</th><th>出囃子</th><th>音源</th><th>台本</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="entries-body"></tbody>
+        </table>
+        <p id="entries-empty" style="color:#888;font-size:13px;display:none;">提出がまだありません</p>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -48,13 +78,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const ADMIN_PASSWORD = 'LUDO2026'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+let currentLiveId = null
+
 function login() {
-  if (document.getElementById('pw-input').value === ADMIN_PASSWORD) {
+  const pw = document.getElementById('pw-input').value
+  if (pw === ADMIN_PASSWORD) {
     sessionStorage.setItem('admin_authed', '1')
+    document.getElementById('pw-error').style.display = 'none'
     showAdmin()
   } else {
-    alert('パスワードが違います')
+    document.getElementById('pw-error').style.display = 'block'
   }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('admin_authed')
+  document.getElementById('admin-screen').style.display = 'none'
+  document.getElementById('login-screen').style.display = 'block'
+  document.getElementById('pw-input').value = ''
 }
 
 function showAdmin() {
@@ -65,41 +106,121 @@ function showAdmin() {
 
 async function fetchLives() {
   const { data } = await sb.from('lives').select('*').order('created_at', { ascending: false })
-  document.getElementById('live-count').textContent = `作成済みライブ（${(data || []).length}件）`
-  document.getElementById('live-list').innerHTML = (data || []).map(l => `
-    <div style="border:1px solid #eee;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <p style="font-weight:500;">${l.name}</p>
-        <p class="hint">${[l.date ? `開催: ${l.date}` : '', l.deadline ? `締切: ${l.deadline.replace('T', ' ').slice(0, 16)}` : ''].filter(Boolean).join(' ・ ')}</p>
+  const lives = data || []
+  document.getElementById('live-count').textContent = `作成済みライブ（${lives.length}件）`
+  document.getElementById('live-list').innerHTML = lives.length ? lives.map(l => `
+    <div style="border:1px solid #eee;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <p style="font-weight:500;font-size:15px;">${l.name}</p>
+          <p class="hint">${[l.date ? `開催: ${l.date}` : '', l.deadline ? `締切: ${l.deadline.replace('T',' ').slice(0,16)}` : ''].filter(Boolean).join(' ・ ')}</p>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+          <button onclick="viewEntries('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm">提出一覧</button>
+          <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}') " class="btn-sm">編集</button>
+          <button onclick="deleteLive('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm btn-danger">削除</button>
+        </div>
       </div>
-      <button onclick="deleteLive('${l.id}', '${l.name.replace(/'/g, "\\'")}')" class="btn-sm btn-danger">削除</button>
     </div>
-  `).join('')
+  `).join('') : '<p class="hint">まだライブがありません</p>'
 }
 
-async function addLive() {
+async function saveLive() {
   const name = document.getElementById('live-name').value.trim()
   if (!name) { alert('ライブ名を入力してください'); return }
-  await sb.from('lives').insert({
+  const payload = {
     name,
     date: document.getElementById('live-date').value || null,
     deadline: document.getElementById('live-deadline').value || null
-  })
+  }
+  const editId = document.getElementById('edit-live-id').value
+  if (editId) {
+    await sb.from('lives').update(payload).eq('id', editId)
+  } else {
+    await sb.from('lives').insert(payload)
+  }
+  cancelEdit()
+  fetchLives()
+}
+
+function startEdit(id, name, date, deadline) {
+  document.getElementById('edit-live-id').value = id
+  document.getElementById('live-name').value = name
+  document.getElementById('live-date').value = date
+  document.getElementById('live-deadline').value = deadline
+  document.getElementById('form-title').textContent = 'ライブを編集'
+  document.getElementById('save-btn').textContent = '変更を保存'
+  document.getElementById('cancel-btn').style.display = 'inline-block'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function cancelEdit() {
+  document.getElementById('edit-live-id').value = ''
   document.getElementById('live-name').value = ''
   document.getElementById('live-date').value = ''
   document.getElementById('live-deadline').value = ''
-  fetchLives()
+  document.getElementById('form-title').textContent = '新しいライブを追加'
+  document.getElementById('save-btn').textContent = 'ライブを作成'
+  document.getElementById('cancel-btn').style.display = 'none'
 }
 
 async function deleteLive(id, name) {
   if (!confirm(`「${name}」を削除しますか？\n提出データも全て消えます`)) return
   await sb.from('lives').delete().eq('id', id)
+  if (currentLiveId === id) closeEntries()
   fetchLives()
 }
 
-function logout() { sb.auth.signOut().then(() => location.href = 'index.html') }
+async function viewEntries(liveId, liveName) {
+  currentLiveId = liveId
+  document.getElementById('entries-title').textContent = `${liveName} の提出一覧`
+  document.getElementById('entries-section').style.display = 'block'
+  document.getElementById('entries-section').scrollIntoView({ behavior: 'smooth' })
 
-// 他ページから戻ってきたときもログイン維持
+  const { data } = await sb.from('entries').select('*').eq('live_id', liveId).order('order', { ascending: true })
+  const entries = data || []
+
+  if (!entries.length) {
+    document.getElementById('entries-table').style.display = 'none'
+    document.getElementById('entries-empty').style.display = 'block'
+    return
+  }
+  document.getElementById('entries-empty').style.display = 'none'
+  document.getElementById('entries-table').style.display = 'table'
+
+  const tbody = document.getElementById('entries-body')
+  tbody.innerHTML = entries.map(e => {
+    const onUrl = e.on_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.on_file_path).data.publicUrl : null
+    const scriptUrl = e.script_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.script_file_path).data.publicUrl : null
+    return `<tr>
+      <td>${e.order ?? '<span class="muted">−</span>'}</td>
+      <td style="font-weight:500;white-space:nowrap;">${e.combi_name}${e.is_updated ? '<span class="badge badge-updated">更新</span>' : ''}</td>
+      <td>${e.format ? `<span class="badge badge-info">${e.format}</span>` : '<span class="muted">−</span>'}</td>
+      <td>${e.tools || '<span class="muted">−</span>'}</td>
+      <td>${e.itatsuki || '<span class="muted">−</span>'}</td>
+      <td>${e.chuku_on === '有り' ? '<span class="badge badge-warn">有り</span>' : e.chuku_on === '無し' ? '<span class="badge badge-ok">無し</span>' : '<span class="muted">−</span>'}</td>
+      <td>${e.chuku_hari === '有り' ? '<span class="badge badge-warn">有り</span>' : e.chuku_hari === '無し' ? '<span class="badge badge-ok">無し</span>' : '<span class="muted">−</span>'}</td>
+      <td>${e.meiten_kikake || '<span class="muted">−</span>'}</td>
+      <td>${e.anten_kikake || '<span class="muted">−</span>'}</td>
+      <td style="white-space:nowrap;">${e.debayashi_full || '<span class="muted">−</span>'}</td>
+      <td>${onUrl ? `<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
+      <td>${scriptUrl ? `<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
+      <td><button onclick="deleteEntry('${e.id}')" class="btn-sm btn-danger">削除</button></td>
+    </tr>`
+  }).join('')
+}
+
+async function deleteEntry(id) {
+  if (!confirm('この提出データを削除しますか？')) return
+  await sb.from('entries').delete().eq('id', id)
+  viewEntries(currentLiveId, document.getElementById('entries-title').textContent.replace(' の提出一覧', ''))
+}
+
+function closeEntries() {
+  document.getElementById('entries-section').style.display = 'none'
+  currentLiveId = null
+}
+
 if (sessionStorage.getItem('admin_authed') === '1') showAdmin()
 </script>
 </body>
