@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スタッフページ</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav>
+  <a href="staff.html" class="active">スタッフページ</a>
+  <a href="table.html">きっかけ表</a>
+  <a href="admin.html">ライブ管理</a>
+  <div class="nav-right">
+    <span class="nav-user" id="nav-user"></span>
+    <button class="btn-sm" onclick="logout()">ログアウト</button>
+  </div>
+</nav>
+<main>
+  <h1 style="margin-bottom:20px;">スタッフページ</h1>
+  <div class="card" style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <button onclick="changeMonth(-1)">＜</button>
+      <h2 style="margin-bottom:0;" id="cal-title"></h2>
+      <button onclick="changeMonth(1)">＞</button>
+    </div>
+    <table class="calendar"><thead><tr><th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th></tr></thead><tbody id="cal-body"></tbody></table>
+    <div style="display:flex;gap:12px;margin-top:12px;font-size:12px;">
+      <span><span style="display:inline-block;width:12px;height:12px;background:#d1e7dd;border-radius:2px;margin-right:4px;"></span>担当ライブ</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:#cfe2ff;border-radius:2px;margin-right:4px;"></span>今日</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2 style="margin-bottom:16px;">担当ライブを管理</h2>
+    <div id="live-list"></div>
+  </div>
+  <div id="live-detail" class="card" style="display:none;margin-top:16px;">
+    <h3 id="detail-title"></h3>
+    <p id="detail-date" class="hint"></p>
+    <a href="table.html" style="color:#0d6efd;font-size:14px;margin-top:8px;display:inline-block;">きっかけ表を見る →</a>
+  </div>
+</main>
+<script>
+const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+let user=null, currentDate=new Date(), myLives=[], allLives=[]
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession()
+  if (!session) { location.href='index.html'; return }
+  user=session.user
+  const { data: profile } = await sb.from('profiles').select('*').eq('id',user.id).single()
+  document.getElementById('nav-user').textContent=profile?.display_name||user.email
+  await fetchData(); renderCalendar(); renderLiveList()
+}
+
+async function fetchData() {
+  const { data: lives } = await sb.from('lives').select('*').order('date')
+  allLives=lives||[]
+  const { data: sl } = await sb.from('staff_lives').select('live_id').eq('user_id',user.id)
+  const myIds=(sl||[]).map(s=>s.live_id)
+  myLives=allLives.filter(l=>myIds.includes(l.id))
+}
+
+function renderCalendar() {
+  const y=currentDate.getFullYear(), m=currentDate.getMonth()
+  document.getElementById('cal-title').textContent=`${y}年${m+1}月`
+  const first=new Date(y,m,1), last=new Date(y,m+1,0), today=new Date()
+  const tbody=document.getElementById('cal-body'); tbody.innerHTML=''
+  let row=document.createElement('tr')
+  for (let i=0;i<first.getDay();i++){const td=document.createElement('td');td.className='other-month';row.appendChild(td)}
+  for (let d=1;d<=last.getDate();d++){
+    const td=document.createElement('td'); td.textContent=d
+    const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const live=myLives.find(l=>l.date===dateStr)
+    if (live){td.className='has-live';td.title=live.name;td.onclick=()=>showDetail(live)}
+    if (today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===d) td.className='today'
+    row.appendChild(td)
+    if ((first.getDay()+d)%7===0){tbody.appendChild(row);row=document.createElement('tr')}
+  }
+  if (row.children.length) tbody.appendChild(row)
+}
+
+function changeMonth(dir){currentDate.setMonth(currentDate.getMonth()+dir);renderCalendar()}
+
+function showDetail(live){
+  document.getElementById('detail-title').textContent=live.name
+  document.getElementById('detail-date').textContent=live.date||''
+  const el=document.getElementById('live-detail'); el.style.display='block'; el.scrollIntoView({behavior:'smooth'})
+}
+
+function renderLiveList(){
+  document.getElementById('live-list').innerHTML=allLives.map(l=>{
+    const isIn=myLives.some(m=>m.id===l.id)
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;"><div><p style="font-weight:500;font-size:14px;">${l.name}</p><p class="hint">${l.date||'日程未定'}</p></div><button onclick="${isIn?`removeStaffLive('${l.id}')` :`addStaffLive('${l.id}')`}" class="btn-sm ${isIn?'btn-danger':''}">${isIn?'外れる':'参加する'}</button></div>`
+  }).join('')
+}
+
+async function addStaffLive(liveId){await sb.from('staff_lives').insert({user_id:user.id,live_id:liveId});await fetchData();renderCalendar();renderLiveList()}
+async function removeStaffLive(liveId){await sb.from('staff_lives').delete().eq('user_id',user.id).eq('live_id',liveId);await fetchData();renderCalendar();renderLiveList()}
+function logout(){sb.auth.signOut().then(()=>location.href='index.html')}
+init()
+</script>
+</body>
+</html>
