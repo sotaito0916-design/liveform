@@ -21,13 +21,13 @@
   </div>
 
   <!-- 管理画面 -->
-  <div id="admin-screen" style="display:none;max-width:640px;margin:0 auto;padding:1.5rem 1rem 4rem;">
+  <div id="admin-screen" style="display:none;max-width:680px;margin:0 auto;padding:1.5rem 1rem 4rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <h1>ライブ管理</h1>
       <button onclick="doLogout()" class="btn-sm">ログアウト</button>
     </div>
 
-    <!-- ライブ追加フォーム -->
+    <!-- ライブ追加・編集フォーム -->
     <div class="card" style="margin-bottom:24px;">
       <h3 id="form-title" style="margin-bottom:16px;">新しいライブを追加</h3>
       <input type="hidden" id="edit-live-id">
@@ -49,24 +49,39 @@
     <p class="hint" id="live-count" style="margin-bottom:12px;"></p>
     <div id="live-list"></div>
 
-    <!-- きっかけ表プレビュー -->
-    <div id="entries-section" style="display:none;margin-top:24px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h2 id="entries-title" style="margin-bottom:0;"></h2>
-        <button onclick="closeEntries()" class="btn-sm">閉じる</button>
+    <!-- 詳細パネル（提出一覧 or スタッフリスト） -->
+    <div id="detail-section" style="display:none;margin-top:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <h2 id="detail-live-name" style="margin-bottom:0;font-size:16px;color:#888;"></h2>
+        <button onclick="closeDetail()" class="btn-sm">閉じる</button>
       </div>
-      <div style="overflow-x:auto;">
-        <table class="kikkake-table" id="entries-table" style="display:none;">
-          <thead>
-            <tr>
-              <th>出番</th><th>コンビ名</th><th>形式</th><th>道具</th><th>板付</th>
-              <th>音響</th><th>照明</th><th>明転</th><th>暗転</th><th>出囃子</th><th>音源</th><th>台本</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="entries-body"></tbody>
-        </table>
-        <p id="entries-empty" style="color:#888;font-size:13px;display:none;">提出がまだありません</p>
+
+      <!-- タブ -->
+      <div style="display:flex;border-bottom:1px solid #eee;margin-bottom:16px;">
+        <button class="tab-btn active" id="tab-entries" onclick="switchTab('entries')">提出一覧</button>
+        <button class="tab-btn" id="tab-staff" onclick="switchTab('staff')">参加スタッフ</button>
+      </div>
+
+      <!-- 提出一覧 -->
+      <div id="panel-entries">
+        <div style="overflow-x:auto;">
+          <table class="kikkake-table" id="entries-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>出番</th><th>コンビ名</th><th>形式</th><th>道具</th><th>板付</th>
+                <th>音響</th><th>照明</th><th>明転</th><th>暗転</th><th>出囃子</th>
+                <th>音源</th><th>台本</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="entries-body"></tbody>
+          </table>
+          <p id="entries-empty" style="color:#888;font-size:13px;display:none;">提出がまだありません</p>
+        </div>
+      </div>
+
+      <!-- スタッフリスト -->
+      <div id="panel-staff" style="display:none;">
+        <div id="staff-list"></div>
       </div>
     </div>
   </div>
@@ -79,10 +94,10 @@ const ADMIN_PASSWORD = 'LUDO2026'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 let currentLiveId = null
+let currentLiveName = ''
 
 function login() {
-  const pw = document.getElementById('pw-input').value
-  if (pw === ADMIN_PASSWORD) {
+  if (document.getElementById('pw-input').value === ADMIN_PASSWORD) {
     sessionStorage.setItem('admin_authed', '1')
     document.getElementById('pw-error').style.display = 'none'
     showAdmin()
@@ -110,14 +125,15 @@ async function fetchLives() {
   document.getElementById('live-count').textContent = `作成済みライブ（${lives.length}件）`
   document.getElementById('live-list').innerHTML = lives.length ? lives.map(l => `
     <div style="border:1px solid #eee;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>
           <p style="font-weight:500;font-size:15px;">${l.name}</p>
-          <p class="hint">${[l.date ? `開催: ${l.date}` : '', l.deadline ? `締切: ${l.deadline.replace('T',' ').slice(0,16)}` : ''].filter(Boolean).join(' ・ ')}</p>
+          <p class="hint">${[l.date?`開催: ${l.date}`:'', l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-          <button onclick="viewEntries('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm">提出一覧</button>
-          <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}') " class="btn-sm">編集</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','entries')" class="btn-sm">提出一覧</button>
+          <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','staff')" class="btn-sm">スタッフ</button>
+          <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}')" class="btn-sm">編集</button>
           <button onclick="deleteLive('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm btn-danger">削除</button>
         </div>
       </div>
@@ -167,19 +183,31 @@ function cancelEdit() {
 async function deleteLive(id, name) {
   if (!confirm(`「${name}」を削除しますか？\n提出データも全て消えます`)) return
   await sb.from('lives').delete().eq('id', id)
-  if (currentLiveId === id) closeEntries()
+  if (currentLiveId === id) closeDetail()
   fetchLives()
 }
 
-async function viewEntries(liveId, liveName) {
+function openDetail(liveId, liveName, tab) {
   currentLiveId = liveId
-  document.getElementById('entries-title').textContent = `${liveName} の提出一覧`
-  document.getElementById('entries-section').style.display = 'block'
-  document.getElementById('entries-section').scrollIntoView({ behavior: 'smooth' })
+  currentLiveName = liveName
+  document.getElementById('detail-live-name').textContent = liveName
+  document.getElementById('detail-section').style.display = 'block'
+  document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' })
+  switchTab(tab)
+}
 
-  const { data } = await sb.from('entries').select('*').eq('live_id', liveId).order('order', { ascending: true })
+function switchTab(tab) {
+  document.getElementById('tab-entries').classList.toggle('active', tab === 'entries')
+  document.getElementById('tab-staff').classList.toggle('active', tab === 'staff')
+  document.getElementById('panel-entries').style.display = tab === 'entries' ? 'block' : 'none'
+  document.getElementById('panel-staff').style.display = tab === 'staff' ? 'block' : 'none'
+  if (tab === 'entries') loadEntries()
+  if (tab === 'staff') loadStaff()
+}
+
+async function loadEntries() {
+  const { data } = await sb.from('entries').select('*').eq('live_id', currentLiveId).order('order', { ascending: true })
   const entries = data || []
-
   if (!entries.length) {
     document.getElementById('entries-table').style.display = 'none'
     document.getElementById('entries-empty').style.display = 'block'
@@ -187,9 +215,7 @@ async function viewEntries(liveId, liveName) {
   }
   document.getElementById('entries-empty').style.display = 'none'
   document.getElementById('entries-table').style.display = 'table'
-
-  const tbody = document.getElementById('entries-body')
-  tbody.innerHTML = entries.map(e => {
+  document.getElementById('entries-body').innerHTML = entries.map(e => {
     const onUrl = e.on_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.on_file_path).data.publicUrl : null
     const scriptUrl = e.script_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.script_file_path).data.publicUrl : null
     return `<tr>
@@ -210,15 +236,41 @@ async function viewEntries(liveId, liveName) {
   }).join('')
 }
 
+async function loadStaff() {
+  const { data: sl } = await sb.from('staff_lives')
+    .select('user_id, profiles(display_name, email)')
+    .eq('live_id', currentLiveId)
+  const list = document.getElementById('staff-list')
+  if (!sl || !sl.length) {
+    list.innerHTML = '<p class="hint">参加スタッフがまだいません</p>'
+    return
+  }
+  list.innerHTML = `
+    <p class="hint" style="margin-bottom:12px;">参加スタッフ ${sl.length}名</p>
+    ${sl.map((s, i) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0;">
+        <div style="width:32px;height:32px;border-radius:50%;background:#cfe2ff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#084298;flex-shrink:0;">
+          ${(s.profiles?.display_name || s.profiles?.email || '?')[0].toUpperCase()}
+        </div>
+        <div>
+          <p style="font-weight:500;font-size:14px;">${s.profiles?.display_name || '名前未設定'}</p>
+          <p class="hint">${s.profiles?.email || ''}</p>
+        </div>
+      </div>
+    `).join('')}
+  `
+}
+
 async function deleteEntry(id) {
   if (!confirm('この提出データを削除しますか？')) return
   await sb.from('entries').delete().eq('id', id)
-  viewEntries(currentLiveId, document.getElementById('entries-title').textContent.replace(' の提出一覧', ''))
+  loadEntries()
 }
 
-function closeEntries() {
-  document.getElementById('entries-section').style.display = 'none'
+function closeDetail() {
+  document.getElementById('detail-section').style.display = 'none'
   currentLiveId = null
+  currentLiveName = ''
 }
 
 if (sessionStorage.getItem('admin_authed') === '1') showAdmin()
