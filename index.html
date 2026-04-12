@@ -3,341 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>きっかけ確認フォーム</title>
+<title>きっかけ確認システム</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<nav>
-  <a href="index.html" class="active">フォーム提出</a>
-  <a href="table.html">きっかけ表</a>
-  <a href="admin.html">ライブ管理</a>
-</nav>
+<body class="auth-page">
+<main style="max-width:400px; margin:4rem auto; padding:0 1rem;">
+  <h1 style="text-align:center; margin-bottom:8px;">きっかけ確認システム</h1>
+  <p style="text-align:center; color:#888; font-size:13px; margin-bottom:32px;">お笑いサークル ライブ運営ツール</p>
 
-<main>
-  <div id="done-screen" style="display:none; text-align:center; padding:4rem 1rem;">
-    <div style="font-size:56px; margin-bottom:16px;">✅</div>
-    <h2>提出完了！</h2>
-    <p style="color:#888; margin-top:8px;">きっかけ表に反映されました</p>
-    <button onclick="resetForm()" style="margin-top:24px;">続けて提出する</button>
-  </div>
-
-  <div id="form-screen">
-    <h1>きっかけ確認フォーム</h1>
-    <p class="hint">同じコンビ名で再提出すると自動で上書き更新されます</p>
-
-    <!-- 修正検索 -->
-    <div class="box" style="margin-bottom:20px;">
-      <p class="hint" style="margin-bottom:8px;">提出済みの内容を修正する場合</p>
-      <div style="display:flex; gap:8px;">
-        <input id="search-input" placeholder="コンビ名で検索" style="flex:1;">
-        <button onclick="handleSearch()">検索</button>
-      </div>
-      <div id="search-result" style="display:none; margin-top:10px;"></div>
+  <div class="card">
+    <div style="display:flex; gap:0; margin-bottom:24px; border-bottom:1px solid #eee;">
+      <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">ログイン</button>
+      <button class="tab-btn" id="tab-register" onclick="switchTab('register')">新規登録</button>
     </div>
 
-    <div id="edit-banner" style="display:none;" class="banner-warning">
-      <span id="edit-label"></span>
-      <button onclick="resetForm()" style="font-size:12px;">キャンセル</button>
-    </div>
-
-    <!-- ライブ選択 -->
-    <div class="field">
-      <label>ライブを選択 <span class="req">*</span></label>
-      <select id="live-select" onchange="onLiveSelect()">
-        <option value="">選択してください</option>
-      </select>
-    </div>
-
-    <div id="form-body" style="display:none;">
-      <!-- コンビ名・出番 -->
-      <div style="display:grid; grid-template-columns:2fr 1fr; gap:12px;">
-        <div class="field">
-          <label>① コンビ名 <span class="req">*</span></label>
-          <input id="combi-name" placeholder="例: 誕生石">
-        </div>
-        <div class="field">
-          <label>出番順</label>
-          <input id="order" type="number" placeholder="例: 3">
-        </div>
-      </div>
-
-      <!-- 形式 -->
+    <!-- ログイン -->
+    <div id="login-form">
       <div class="field">
-        <label>② 形式 <span class="req">*</span></label>
-        <div class="btn-group" id="format-group">
-          <button class="tog-btn" onclick="setFormat('漫才')">漫才</button>
-          <button class="tog-btn" onclick="setFormat('ピン')">ピン</button>
-          <button class="tog-btn" onclick="setFormat('コント')">コント</button>
+        <label>メールアドレス</label>
+        <input type="email" id="login-email" placeholder="example@email.com">
+      </div>
+      <div class="field">
+        <label>パスワード</label>
+        <input type="password" id="login-password" placeholder="パスワード">
+      </div>
+      <p id="login-error" style="color:#dc3545; font-size:13px; margin-bottom:12px; display:none;"></p>
+      <button onclick="handleLogin()" class="btn-primary" style="width:100%;">ログイン</button>
+    </div>
+
+    <!-- 新規登録 -->
+    <div id="register-form" style="display:none;">
+      <div class="field">
+        <label>表示名</label>
+        <input type="text" id="reg-name" placeholder="例: 山田太郎">
+      </div>
+      <div class="field">
+        <label>メールアドレス</label>
+        <input type="email" id="reg-email" placeholder="example@email.com">
+      </div>
+      <div class="field">
+        <label>パスワード</label>
+        <input type="password" id="reg-password" placeholder="6文字以上">
+      </div>
+      <div class="field">
+        <label>アカウント種別 <span class="req">*</span></label>
+        <div class="btn-group">
+          <button class="tog-btn" id="role-performer" onclick="setRole('performer')">演者</button>
+          <button class="tog-btn" id="role-staff" onclick="setRole('staff')">スタッフ</button>
         </div>
       </div>
-
-      <div id="manzai-note" style="display:none;" class="banner-info">
-        漫才は①②⑧のみ入力してください
-      </div>
-
-      <!-- コント・ピン専用項目 -->
-      <div id="konto-fields" style="display:none;">
-        <div class="field">
-          <label>③ 使用道具</label>
-          <input id="tools" placeholder="例: 椅子2 机1（なければ「ナシ」）">
-        </div>
-        <div class="field">
-          <label>④ 板付人数</label>
-          <input id="itatsuki" placeholder="例: 2人（板付なしなら「0」）">
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div class="field">
-            <label>⑤ 途中音響</label>
-            <div class="btn-group">
-              <button class="tog-btn warn" id="on-ari" onclick="setToggle('chuku-on','有り')">有り</button>
-              <button class="tog-btn ok" id="on-nasi" onclick="setToggle('chuku-on','無し')">無し</button>
-            </div>
-          </div>
-          <div class="field">
-            <label>⑤ 途中照明</label>
-            <div class="btn-group">
-              <button class="tog-btn warn" id="hari-ari" onclick="setToggle('chuku-hari','有り')">有り</button>
-              <button class="tog-btn ok" id="hari-nasi" onclick="setToggle('chuku-hari','無し')">無し</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="on-file-field" style="display:none;" class="field">
-          <label>音響ファイル（mp3）</label>
-          <input type="file" id="on-file" accept=".mp3,audio/*">
-          <p class="hint">アップロードするとSupabaseに保存されます</p>
-        </div>
-
-        <div class="field">
-          <label>⑥ 明転きっかけ</label>
-          <input id="meiten" placeholder="例: がなり明転">
-        </div>
-        <div class="field">
-          <label>⑦ 暗転きっかけ</label>
-          <input id="anten" placeholder='例: 森谷「台詞」'>
-        </div>
-
-        <div id="script-file-field" style="display:none;" class="field">
-          <label>台本PDF（途中音照あり組は当日2部持参）</label>
-          <input type="file" id="script-file" accept=".pdf">
-        </div>
-      </div>
-
-      <!-- 出囃子（全形式共通） -->
-      <div class="field" id="debayashi-field" style="display:none;">
-        <label>⑧ 出囃子</label>
-        <div style="display:flex; gap:8px; margin-bottom:8px;">
-          <input id="debayashi" placeholder="タイトル（例: Anything Goes!）" style="flex:1;">
-          <button id="nasi-btn" class="tog-btn warn" onclick="setNasi()" style="white-space:nowrap; flex:0 0 56px;">ナシ</button>
-        </div>
-        <input id="debayashi-artist" placeholder="アーティスト名（例: 大黒摩季）" style="display:none;">
-        <p class="hint">原則Apple Musicにある曲でお願いします</p>
-      </div>
-
-      <button id="submit-btn" onclick="handleSubmit()" class="btn-primary">提出する</button>
+      <p id="reg-error" style="color:#dc3545; font-size:13px; margin-bottom:12px; display:none;"></p>
+      <p id="reg-success" style="color:#198754; font-size:13px; margin-bottom:12px; display:none;"></p>
+      <button onclick="handleRegister()" class="btn-primary" style="width:100%;">登録する</button>
     </div>
   </div>
 </main>
 
 <script>
-const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
+const SUPABASE_URL = 'YOUR_SUPABASE_URL'
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-let selectedFormat = ''
-let toggleState = { 'chuku-on': '', 'chuku-hari': '' }
-let isEdit = false
-let editId = null
-let nasiMode = false
+let selectedRole = ''
 
-// ---- 初期化 ----
 async function init() {
-  const { data } = await sb.from('lives').select('*').order('created_at', { ascending: false })
-  const sel = document.getElementById('live-select')
-  ;(data || []).forEach(l => {
-    const opt = document.createElement('option')
-    opt.value = l.id
-    opt.textContent = l.name
-    sel.appendChild(opt)
+  const { data: { session } } = await sb.auth.getSession()
+  if (session) redirectByRole(session.user)
+}
+
+async function redirectByRole(user) {
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile) return
+  if (profile.role === 'staff') location.href = 'staff.html'
+  else location.href = 'form.html'
+}
+
+function switchTab(tab) {
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none'
+  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none'
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login')
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register')
+}
+
+function setRole(role) {
+  selectedRole = role
+  document.getElementById('role-performer').classList.toggle('active-info', role === 'performer')
+  document.getElementById('role-staff').classList.toggle('active-info', role === 'staff')
+}
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim()
+  const password = document.getElementById('login-password').value
+  const errEl = document.getElementById('login-error')
+  errEl.style.display = 'none'
+  const { data, error } = await sb.auth.signInWithPassword({ email, password })
+  if (error) { errEl.textContent = 'メールアドレスまたはパスワードが違います'; errEl.style.display = 'block'; return }
+  redirectByRole(data.user)
+}
+
+async function handleRegister() {
+  const name = document.getElementById('reg-name').value.trim()
+  const email = document.getElementById('reg-email').value.trim()
+  const password = document.getElementById('reg-password').value
+  const errEl = document.getElementById('reg-error')
+  const sucEl = document.getElementById('reg-success')
+  errEl.style.display = 'none'; sucEl.style.display = 'none'
+  if (!name || !email || !password || !selectedRole) { errEl.textContent = '全ての項目を入力してください'; errEl.style.display = 'block'; return }
+  if (password.length < 6) { errEl.textContent = 'パスワードは6文字以上にしてください'; errEl.style.display = 'block'; return }
+  const { error } = await sb.auth.signUp({
+    email, password,
+    options: { data: { role: selectedRole, display_name: name } }
   })
-}
-
-function onLiveSelect() {
-  document.getElementById('form-body').style.display =
-    document.getElementById('live-select').value ? 'block' : 'none'
-}
-
-// ---- 形式選択 ----
-function setFormat(f) {
-  selectedFormat = f
-  document.querySelectorAll('#format-group .tog-btn').forEach(b => {
-    b.classList.toggle('active-info', b.textContent === f)
-  })
-  document.getElementById('manzai-note').style.display = f === '漫才' ? 'block' : 'none'
-  document.getElementById('konto-fields').style.display = f !== '漫才' ? 'block' : 'none'
-  document.getElementById('debayashi-field').style.display = 'block'
-}
-
-// ---- トグルボタン ----
-function setToggle(key, val) {
-  toggleState[key] = val
-  const isOn = key === 'chuku-on'
-  document.getElementById(isOn ? 'on-ari' : 'hari-ari').classList.toggle('active-warn', val === '有り')
-  document.getElementById(isOn ? 'on-nasi' : 'hari-nasi').classList.toggle('active-ok', val === '無し')
-  if (key === 'chuku-on') {
-    document.getElementById('on-file-field').style.display = val === '有り' ? 'block' : 'none'
-  }
-  const needFile = toggleState['chuku-on'] === '有り' || toggleState['chuku-hari'] === '有り'
-  document.getElementById('script-file-field').style.display = needFile ? 'block' : 'none'
-}
-
-// ---- ナシボタン ----
-function setNasi() {
-  nasiMode = !nasiMode
-  document.getElementById('nasi-btn').classList.toggle('active-warn', nasiMode)
-  document.getElementById('debayashi').value = nasiMode ? 'ナシ' : ''
-  document.getElementById('debayashi-artist').style.display = nasiMode ? 'none' : 'block'
-}
-
-document.getElementById('debayashi') && document.getElementById('debayashi').addEventListener('input', function() {
-  if (this.value !== 'ナシ') {
-    nasiMode = false
-    document.getElementById('nasi-btn').classList.remove('active-warn')
-    document.getElementById('debayashi-artist').style.display = 'block'
-  }
-})
-
-// ---- 修正検索 ----
-async function handleSearch() {
-  const liveId = document.getElementById('live-select').value
-  if (!liveId) { alert('先にライブを選択してください'); return }
-  const q = document.getElementById('search-input').value.trim()
-  const { data } = await sb.from('entries').select('*')
-    .eq('live_id', liveId).eq('combi_name', q).single()
-  const box = document.getElementById('search-result')
-  if (!data) {
-    box.style.display = 'block'
-    box.innerHTML = '<p style="color:#dc3545; font-size:13px;">見つかりませんでした</p>'
-    return
-  }
-  box.style.display = 'block'
-  box.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #eee; border-radius:6px; padding:8px 12px;">
-    <span style="font-size:13px;">${data.combi_name}</span>
-    <button onclick="loadEdit(${JSON.stringify(data).replace(/"/g, '&quot;')})" style="font-size:12px;">修正する</button>
-  </div>`
-}
-
-function loadEdit(data) {
-  isEdit = true; editId = data.id
-  document.getElementById('live-select').value = data.live_id
-  document.getElementById('form-body').style.display = 'block'
-  document.getElementById('combi-name').value = data.combi_name || ''
-  document.getElementById('order').value = data.order || ''
-  if (data.format) setFormat(data.format)
-  document.getElementById('tools').value = data.tools || ''
-  document.getElementById('itatsuki').value = data.itatsuki || ''
-  if (data.chuku_on) setToggle('chuku-on', data.chuku_on)
-  if (data.chuku_hari) setToggle('chuku-hari', data.chuku_hari)
-  document.getElementById('meiten').value = data.meiten_kikake || ''
-  document.getElementById('anten').value = data.anten_kikake || ''
-  const deb = data.debayashi_full || ''
-  if (deb === 'ナシ') { setNasi() }
-  else {
-    const parts = deb.split('/')
-    document.getElementById('debayashi').value = parts[0] || ''
-    document.getElementById('debayashi-artist').value = parts[1] || ''
-  }
-  document.getElementById('edit-banner').style.display = 'flex'
-  document.getElementById('edit-label').textContent = `修正モード：${data.combi_name}`
-  document.getElementById('submit-btn').textContent = '修正して提出する'
-  document.getElementById('search-result').style.display = 'none'
-}
-
-// ---- 提出 ----
-async function handleSubmit() {
-  const liveId = document.getElementById('live-select').value
-  const combiName = document.getElementById('combi-name').value.trim()
-  if (!liveId || !combiName || !selectedFormat) { alert('ライブ、コンビ名、形式は必須です'); return }
-
-  document.getElementById('submit-btn').textContent = '送信中...'
-  document.getElementById('submit-btn').disabled = true
-
-  try {
-    const deb = document.getElementById('debayashi').value
-    const debArtist = document.getElementById('debayashi-artist').value
-    const debFull = deb === 'ナシ' ? 'ナシ' : [deb, debArtist].filter(Boolean).join('/')
-
-    let onPath = null, scriptPath = null
-    const onFile = document.getElementById('on-file')?.files[0]
-    const scriptFile = document.getElementById('script-file')?.files[0]
-    if (onFile) {
-      const path = `on/${Date.now()}_${onFile.name}`
-      await sb.storage.from('kikkake-files').upload(path, onFile)
-      onPath = path
-    }
-    if (scriptFile) {
-      const path = `script/${Date.now()}_${scriptFile.name}`
-      await sb.storage.from('kikkake-files').upload(path, scriptFile)
-      scriptPath = path
-    }
-
-    const payload = {
-      live_id: liveId, combi_name: combiName,
-      order: document.getElementById('order').value ? parseInt(document.getElementById('order').value) : null,
-      format: selectedFormat,
-      tools: document.getElementById('tools').value || null,
-      itatsuki: document.getElementById('itatsuki').value || null,
-      chuku_on: toggleState['chuku-on'] || null,
-      chuku_hari: toggleState['chuku-hari'] || null,
-      meiten_kikake: document.getElementById('meiten').value || null,
-      anten_kikake: document.getElementById('anten').value || null,
-      debayashi_full: debFull || null,
-      on_file_path: onPath,
-      script_file_path: scriptPath,
-      is_updated: true,
-      updated_at: new Date().toISOString(),
-    }
-
-    if (isEdit && editId) {
-      await sb.from('entries').update(payload).eq('id', editId)
-    } else {
-      await sb.from('entries').upsert(payload, { onConflict: 'live_id,combi_name' })
-    }
-
-    document.getElementById('form-screen').style.display = 'none'
-    document.getElementById('done-screen').style.display = 'block'
-  } catch(e) {
-    alert('エラーが発生しました。もう一度お試しください。')
-    console.error(e)
-  }
-  document.getElementById('submit-btn').textContent = isEdit ? '修正して提出する' : '提出する'
-  document.getElementById('submit-btn').disabled = false
-}
-
-function resetForm() {
-  isEdit = false; editId = null; selectedFormat = ''; nasiMode = false
-  toggleState = { 'chuku-on': '', 'chuku-hari': '' }
-  document.getElementById('done-screen').style.display = 'none'
-  document.getElementById('form-screen').style.display = 'block'
-  document.getElementById('form-body').style.display = 'none'
-  document.getElementById('live-select').value = ''
-  document.getElementById('combi-name').value = ''
-  document.getElementById('order').value = ''
-  document.getElementById('tools').value = ''
-  document.getElementById('itatsuki').value = ''
-  document.getElementById('meiten').value = ''
-  document.getElementById('anten').value = ''
-  document.getElementById('debayashi').value = ''
-  document.getElementById('debayashi-artist').value = ''
-  document.getElementById('edit-banner').style.display = 'none'
-  document.getElementById('submit-btn').textContent = '提出する'
-  document.querySelectorAll('.tog-btn').forEach(b => b.classList.remove('active-info','active-warn','active-ok'))
-  document.getElementById('konto-fields').style.display = 'none'
-  document.getElementById('debayashi-field').style.display = 'none'
-  document.getElementById('manzai-note').style.display = 'none'
-  document.getElementById('search-result').style.display = 'none'
+  if (error) { errEl.textContent = '登録に失敗しました: ' + error.message; errEl.style.display = 'block'; return }
+  sucEl.textContent = '登録完了！メールを確認してログインしてください。'
+  sucEl.style.display = 'block'
 }
 
 init()
