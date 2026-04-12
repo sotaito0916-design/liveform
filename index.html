@@ -11,41 +11,21 @@
 <main style="max-width:400px; margin:4rem auto; padding:0 1rem;">
   <h1 style="text-align:center; margin-bottom:8px;">きっかけ確認システム</h1>
   <p style="text-align:center; color:#888; font-size:13px; margin-bottom:32px;">お笑いサークル ライブ運営ツール</p>
-
   <div class="card">
     <div style="display:flex; gap:0; margin-bottom:24px; border-bottom:1px solid #eee;">
       <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">ログイン</button>
       <button class="tab-btn" id="tab-register" onclick="switchTab('register')">新規登録</button>
     </div>
-
-    <!-- ログイン -->
     <div id="login-form">
-      <div class="field">
-        <label>メールアドレス</label>
-        <input type="email" id="login-email" placeholder="example@email.com">
-      </div>
-      <div class="field">
-        <label>パスワード</label>
-        <input type="password" id="login-password" placeholder="パスワード">
-      </div>
+      <div class="field"><label>メールアドレス</label><input type="email" id="login-email" placeholder="example@email.com"></div>
+      <div class="field"><label>パスワード</label><input type="password" id="login-password" placeholder="パスワード"></div>
       <p id="login-error" style="color:#dc3545; font-size:13px; margin-bottom:12px; display:none;"></p>
       <button onclick="handleLogin()" class="btn-primary" style="width:100%;">ログイン</button>
     </div>
-
-    <!-- 新規登録 -->
     <div id="register-form" style="display:none;">
-      <div class="field">
-        <label>表示名</label>
-        <input type="text" id="reg-name" placeholder="例: 山田太郎">
-      </div>
-      <div class="field">
-        <label>メールアドレス</label>
-        <input type="email" id="reg-email" placeholder="example@email.com">
-      </div>
-      <div class="field">
-        <label>パスワード</label>
-        <input type="password" id="reg-password" placeholder="6文字以上">
-      </div>
+      <div class="field"><label>表示名</label><input type="text" id="reg-name" placeholder="例: 山田太郎"></div>
+      <div class="field"><label>メールアドレス</label><input type="email" id="reg-email" placeholder="example@email.com"></div>
+      <div class="field"><label>パスワード</label><input type="password" id="reg-password" placeholder="6文字以上"></div>
       <div class="field">
         <label>アカウント種別 <span class="req">*</span></label>
         <div class="btn-group">
@@ -59,12 +39,10 @@
     </div>
   </div>
 </main>
-
 <script>
-const SUPABASE_URL = 'YOUR_SUPABASE_URL'
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'
+const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-
 let selectedRole = ''
 
 async function init() {
@@ -75,8 +53,7 @@ async function init() {
 async function redirectByRole(user) {
   const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single()
   if (!profile) return
-  if (profile.role === 'staff') location.href = 'staff.html'
-  else location.href = 'form.html'
+  location.href = profile.role === 'staff' ? 'staff.html' : 'form.html'
 }
 
 function switchTab(tab) {
@@ -111,13 +88,9 @@ async function handleRegister() {
   errEl.style.display = 'none'; sucEl.style.display = 'none'
   if (!name || !email || !password || !selectedRole) { errEl.textContent = '全ての項目を入力してください'; errEl.style.display = 'block'; return }
   if (password.length < 6) { errEl.textContent = 'パスワードは6文字以上にしてください'; errEl.style.display = 'block'; return }
-  const { error } = await sb.auth.signUp({
-    email, password,
-    options: { data: { role: selectedRole, display_name: name } }
-  })
+  const { error } = await sb.auth.signUp({ email, password, options: { data: { role: selectedRole, display_name: name } } })
   if (error) { errEl.textContent = '登録に失敗しました: ' + error.message; errEl.style.display = 'block'; return }
-  sucEl.textContent = '登録完了！メールを確認してログインしてください。'
-  sucEl.style.display = 'block'
+  sucEl.textContent = '登録完了！メールを確認してログインしてください。'; sucEl.style.display = 'block'
 }
 
 init()
