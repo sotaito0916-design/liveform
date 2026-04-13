@@ -69,8 +69,15 @@
             <thead>
               <tr>
                 <th>出番</th><th>コンビ名</th><th>形式</th><th>道具</th><th>板付</th>
-                <th>音響</th><th>照明</th><th>明転</th><th>暗転</th><th>出囃子</th>
-                <th>音源</th><th>台本</th><th>操作</th>
+                <th>音響</th><th>照明</th><th>明転</th><th>暗転</th>
+                <th>出囃子</th><th>音源</th><th>台本</th><th>操作</th>
+              </tr>
+              <tr style="background:#fafafa;">
+                <th colspan="9"></th>
+                <th style="color:#888;font-weight:400;font-size:11px;">↓2行目</th>
+                <th style="color:#888;font-weight:400;font-size:11px;">↓2行目</th>
+                <th style="color:#888;font-weight:400;font-size:11px;">↓2行目</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="entries-body"></tbody>
@@ -127,14 +134,18 @@ async function fetchLives() {
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>
           <p style="font-weight:500;font-size:15px;">${l.name}</p>
-          <p class="hint">${[l.date?`開催: ${l.date}`:'', l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
+          <p class="hint" style="font-size:12px;margin-top:4px;">${[l.date?`開催: ${l.date}`:'', l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','entries')" class="btn-sm">提出一覧</button>
-          <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','staff')" class="btn-sm">スタッフ</button>
           <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}')" class="btn-sm">編集</button>
           <button onclick="deleteLive('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm btn-danger">削除</button>
         </div>
+      </div>
+      <!-- 提出一覧・スタッフタブをライブカード内に表示 -->
+      <div style="display:flex;border-top:1px solid #eee;margin-top:10px;padding-top:10px;gap:8px;">
+        <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','entries')" class="btn-sm">提出一覧</button>
+        <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','staff')" class="btn-sm">スタッフ</button>
+      </div>
       </div>
     </div>
   `).join('') : '<p class="hint">まだライブがありません</p>'
@@ -223,9 +234,20 @@ async function loadEntries() {
       <td>${e.chuku_hari === '有り' ? '<span class="badge badge-warn">有り</span>' : e.chuku_hari === '無し' ? '<span class="badge badge-ok">無し</span>' : '<span class="muted">−</span>'}</td>
       <td>${e.meiten_kikake || '<span class="muted">−</span>'}</td>
       <td>${e.anten_kikake || '<span class="muted">−</span>'}</td>
-      <td style="white-space:nowrap;">${e.debayashi_full || '<span class="muted">−</span>'}</td>
-      <td>${onUrl ? `<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
-      <td>${scriptUrl ? `<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
+      <td colspan="3" style="padding:0;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <tr>
+            <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;white-space:nowrap;">${e.debayashi_full || '<span class="muted">−</span>'}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;">${onUrl ? `<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;">${scriptUrl ? `<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
+          </tr>
+          <tr style="background:#fafafa;font-size:11px;color:#888;">
+            <td style="padding:2px 8px;">出囃子</td>
+            <td style="padding:2px 8px;">音源</td>
+            <td style="padding:2px 8px;">台本</td>
+          </tr>
+        </table>
+      </td>
       <td><button onclick="deleteEntry('${e.id}')" class="btn-sm btn-danger">削除</button></td>
     </tr>`
   }).join('')
