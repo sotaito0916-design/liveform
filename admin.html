@@ -3,277 +3,404 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ライブ管理</title>
+<title>フォーム提出</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
+<style>
+.tool-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.tool-label { font-size:13px; min-width:90px; color:#555; }
+.tool-toggle { padding:7px 14px; font-size:13px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; }
+.tool-toggle.active-info { background:#cfe2ff; border:2px solid #0d6efd; color:#084298; font-weight:600; }
+.tool-options { display:none; gap:6px; flex-wrap:wrap; }
+.tool-options.open { display:flex; }
+</style>
 </head>
 <body>
-<main>
-  <!-- ログイン画面 -->
-  <div id="login-screen" style="max-width:320px;margin:4rem auto;text-align:center;padding:0 1rem;">
-    <h1 style="margin-bottom:8px;">ライブ管理</h1>
-    <p style="color:#888;font-size:13px;margin-bottom:24px;">管理者専用ページ</p>
-    <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:24px;">
-      <div class="field"><label>パスワード</label><input type="password" id="pw-input" placeholder="パスワードを入力" onkeydown="if(event.key==='Enter') login()"></div>
-      <button onclick="login()" class="btn-primary" style="width:100%;">ログイン</button>
-      <p id="pw-error" style="color:#dc3545;font-size:13px;margin-top:10px;display:none;">パスワードが違います</p>
-    </div>
+<nav>
+  <a href="form.html" class="active">フォーム提出</a>
+  <a href="table.html">きっかけ表</a>
+  <a href="mypage.html">マイページ</a>
+  <div class="nav-right">
+    <span class="nav-user" id="nav-user"></span>
+    <button class="btn-sm" onclick="logout()">ログアウト</button>
   </div>
+</nav>
+<main>
+  <div id="done-screen" style="display:none;text-align:center;padding:4rem 1rem;">
+    <div style="font-size:56px;margin-bottom:16px;">✅</div>
+    <h2>提出完了！</h2>
+    <p style="color:#888;margin-top:8px;">きっかけ表に反映されました</p>
+    <button onclick="resetForm()" style="margin-top:24px;">続けて提出する</button>
+  </div>
+  <div id="form-screen">
+    <h1 style="margin-bottom:4px;">きっかけ確認フォーム</h1>
+    <p class="hint" style="margin-bottom:20px;">同じコンビ名で再提出すると自動で上書き更新されます</p>
 
-  <!-- 管理画面 -->
-  <div id="admin-screen" style="display:none;max-width:680px;margin:0 auto;padding:1.5rem 1rem 4rem;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
-      <h1>ライブ管理</h1>
-      <button onclick="doLogout()" class="btn-sm">ログアウト</button>
+    <!-- ネタ呼び出し -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>保存済みネタから自動入力</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field" style="margin-bottom:0;"><label>ユニット</label><select id="neta-unit-sel" onchange="loadNeta()"><option value="">選択してください</option></select></div>
+        <div class="field" style="margin-bottom:0;"><label>ネタタイトル</label><select id="neta-sel" onchange="applyNeta()"><option value="">選択してください</option></select></div>
+      </div>
     </div>
 
-    <!-- ライブ追加・編集フォーム -->
-    <div class="card" style="margin-bottom:24px;">
-      <h3 id="form-title" style="margin-bottom:16px;">新しいライブを追加</h3>
-      <input type="hidden" id="edit-live-id">
+    <div class="card">
       <div class="field">
-        <label>ライブ名 <span class="req">*</span></label>
-        <input id="live-name" placeholder="例: 新歓ライブ vol.2">
+        <label>ライブを選択 <span class="req">*</span></label>
+        <select id="live-select" onchange="onLiveSelect()"><option value="">選択してください</option></select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div class="field" style="margin-bottom:0;"><label>開催日</label><input type="date" id="live-date"></div>
-        <div class="field" style="margin-bottom:0;"><label>提出締切</label><input type="datetime-local" id="live-deadline"></div>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button onclick="saveLive()" class="btn-primary" id="save-btn" style="flex:1;">ライブを作成</button>
-        <button onclick="cancelEdit()" id="cancel-btn" style="display:none;">キャンセル</button>
-      </div>
-    </div>
-
-    <!-- ライブ一覧 -->
-    <p class="hint" id="live-count" style="margin-bottom:12px;"></p>
-    <div id="live-list"></div>
-
-    <!-- 詳細パネル（提出一覧 or スタッフリスト） -->
-    <div id="detail-section" style="display:none;margin-top:24px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-        <h2 id="detail-live-name" style="margin-bottom:0;font-size:16px;color:#888;"></h2>
-        <button onclick="closeDetail()" class="btn-sm">閉じる</button>
-      </div>
-
-      <!-- タブ -->
-      <div style="display:flex;border-bottom:1px solid #eee;margin-bottom:16px;">
-        <button class="tab-btn active" id="tab-entries" onclick="switchTab('entries')">提出一覧</button>
-        <button class="tab-btn" id="tab-staff" onclick="switchTab('staff')">参加スタッフ</button>
-      </div>
-
-      <!-- 提出一覧 -->
-      <div id="panel-entries">
-        <div style="overflow-x:auto;">
-          <table class="kikkake-table" id="entries-table" style="display:none;">
-            <thead>
-              <tr>
-                <th>出番</th><th>コンビ名</th><th>形式</th><th>道具</th><th>板付</th>
-                <th>音響</th><th>照明</th><th>明転</th><th>暗転</th><th>出囃子</th>
-                <th>音源</th><th>台本</th><th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="entries-body"></tbody>
-          </table>
-          <p id="entries-empty" style="color:#888;font-size:13px;display:none;">提出がまだありません</p>
+      <div id="form-body" style="display:none;">
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+          <div class="field"><label>① コンビ名 <span class="req">*</span></label><input id="combi-name" placeholder="例: 誕生石"></div>
+          <div class="field"><label>出番順</label><input id="order" type="number" placeholder="例: 3"></div>
         </div>
-      </div>
+        <div class="field">
+          <label>② 形式 <span class="req">*</span></label>
+          <div class="btn-group" id="format-group">
+            <button class="tog-btn" onclick="setFormat('漫才')">漫才</button>
+            <button class="tog-btn" onclick="setFormat('ピン')">ピン</button>
+            <button class="tog-btn" onclick="setFormat('コント')">コント</button>
+          </div>
+        </div>
+        <div id="manzai-note" style="display:none;" class="banner-info">漫才は①②⑧のみ入力してください</div>
 
-      <!-- スタッフリスト -->
-      <div id="panel-staff" style="display:none;">
-        <div id="staff-list"></div>
+        <div id="konto-fields" style="display:none;">
+          <!-- 道具：ボタンで展開 -->
+          <div class="field">
+            <label>③ 使用道具</label>
+            <p class="hint" style="margin-bottom:8px;">使用する道具をクリックして数を選んでください</p>
+
+            <!-- 机 -->
+            <div class="tool-row">
+              <button class="tool-toggle" id="desk-toggle" onclick="toggleTool('desk')">机</button>
+              <div class="tool-options" id="desk-options">
+                <button class="tog-btn" onclick="setTool('desk',1)">1台</button>
+                <button class="tog-btn" onclick="setTool('desk',2)">2台</button>
+                <button class="tog-btn" onclick="setTool('desk','custom')">手動</button>
+                <input id="desk-custom" type="number" placeholder="台数" style="width:70px;display:none;" min="1">
+                <button class="tog-btn" style="color:#dc3545;" onclick="clearTool('desk')">✕</button>
+              </div>
+            </div>
+
+            <!-- 椅子 -->
+            <div class="tool-row">
+              <button class="tool-toggle" id="chair-toggle" onclick="toggleTool('chair')">椅子</button>
+              <div class="tool-options" id="chair-options">
+                <button class="tog-btn" onclick="setTool('chair',1)">1脚</button>
+                <button class="tog-btn" onclick="setTool('chair',2)">2脚</button>
+                <button class="tog-btn" onclick="setTool('chair','custom')">手動</button>
+                <input id="chair-custom" type="number" placeholder="脚数" style="width:70px;display:none;" min="1">
+                <button class="tog-btn" style="color:#dc3545;" onclick="clearTool('chair')">✕</button>
+              </div>
+            </div>
+
+            <!-- ハンドマイク -->
+            <div class="tool-row">
+              <button class="tool-toggle" id="mic-toggle" onclick="toggleTool('mic')">ハンドマイク</button>
+              <div class="tool-options" id="mic-options">
+                <button class="tog-btn" onclick="setTool('mic',1)">1本</button>
+                <button class="tog-btn" onclick="setTool('mic',2)">2本</button>
+                <button class="tog-btn" onclick="setTool('mic','custom')">手動</button>
+                <input id="mic-custom" type="number" placeholder="本数" style="width:70px;display:none;" min="1">
+                <button class="tog-btn" style="color:#dc3545;" onclick="clearTool('mic')">✕</button>
+              </div>
+            </div>
+
+            <!-- その他 -->
+            <div class="tool-row">
+              <button class="tool-toggle" id="other-toggle" onclick="toggleTool('other')">その他</button>
+              <div class="tool-options" id="other-options">
+                <input id="other-custom" type="text" placeholder="道具名を入力（例: 台本、スタンドマイク）" style="flex:1;">
+                <button class="tog-btn" style="color:#dc3545;" onclick="clearTool('other')">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 板付き -->
+          <div class="field">
+            <label>④ 板付人数</label>
+            <div class="btn-group" id="itatsuki-group">
+              <button class="tog-btn" onclick="setItatsuki(0)">0人</button>
+              <button class="tog-btn" onclick="setItatsuki(1)">1人</button>
+              <button class="tog-btn" onclick="setItatsuki(2)">2人</button>
+              <button class="tog-btn" onclick="setItatsuki(3)">3人</button>
+              <button class="tog-btn" onclick="setItatsuki(4)">4人</button>
+              <button class="tog-btn" onclick="setItatsuki('custom')">手動</button>
+            </div>
+            <input id="itatsuki-custom-input" type="number" placeholder="人数" style="width:100px;margin-top:8px;display:none;" min="0">
+          </div>
+
+          <!-- 音照 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="field">
+              <label>⑤ 途中音響</label>
+              <div class="btn-group">
+                <button class="tog-btn" id="on-ari" onclick="setToggle('chuku-on','有り')">有り</button>
+                <button class="tog-btn" id="on-nasi" onclick="setToggle('chuku-on','無し')">無し</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>⑤ 途中照明</label>
+              <div class="btn-group">
+                <button class="tog-btn" id="hari-ari" onclick="setToggle('chuku-hari','有り')">有り</button>
+                <button class="tog-btn" id="hari-nasi" onclick="setToggle('chuku-hari','無し')">無し</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ファイル -->
+          <div id="file-fields" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div class="field" id="on-file-field" style="display:none;">
+                <label>音響ファイル（mp3）</label>
+                <input type="file" id="on-file" accept=".mp3,audio/*">
+                <p class="hint" style="margin-top:4px;">Supabaseに保存されます</p>
+              </div>
+              <div class="field" id="script-file-field" style="display:none;">
+                <label>台本PDF</label>
+                <input type="file" id="script-file" accept=".pdf">
+                <p class="hint" style="margin-top:4px;">当日2部持参してください</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 明転 -->
+          <div class="field">
+            <label>⑥ 明転きっかけ</label>
+            <div class="btn-group" id="meiten-group">
+              <button class="tog-btn" onclick="setKikake('meiten','がなり明転')">がなり明転</button>
+              <button class="tog-btn" onclick="setKikake('meiten','台詞明転')">台詞明転</button>
+              <button class="tog-btn" onclick="setKikake('meiten','その他')">その他</button>
+            </div>
+            <input id="meiten-detail" placeholder="台詞 / 詳細を入力" style="margin-top:8px;display:none;">
+          </div>
+
+          <!-- 暗転 -->
+          <div class="field">
+            <label>⑦ 暗転きっかけ</label>
+            <div class="btn-group" id="anten-group">
+              <button class="tog-btn" onclick="setKikake('anten','挨拶終わり')">挨拶終わり</button>
+              <button class="tog-btn" onclick="setKikake('anten','台詞暗転')">台詞暗転</button>
+              <button class="tog-btn" onclick="setKikake('anten','その他')">その他</button>
+            </div>
+            <input id="anten-detail" placeholder="台詞 / 詳細を入力" style="margin-top:8px;display:none;">
+          </div>
+        </div>
+
+        <!-- 出囃子 -->
+        <div class="field" id="debayashi-field" style="display:none;">
+          <label>⑧ 出囃子</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <input id="debayashi" placeholder="タイトル（例: Anything Goes!）" style="flex:1;" oninput="onDebayashiInput()">
+            <button id="nasi-btn" class="tog-btn" onclick="setNasi()" style="flex:0 0 56px;">ナシ</button>
+          </div>
+          <input id="debayashi-artist" placeholder="アーティスト名（例: 大黒摩季）" style="display:none;">
+          <p class="hint" style="margin-top:4px;">原則Apple Musicにある曲でお願いします</p>
+        </div>
+
+        <button id="submit-btn" onclick="handleSubmit()" class="btn-primary" style="width:100%;">提出する</button>
       </div>
     </div>
   </div>
 </main>
-
 <script>
 const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
-const ADMIN_PASSWORD = 'LUDO2026'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-let currentLiveId = null
-let currentLiveName = ''
+let user=null, selectedFormat='', toggleState={'chuku-on':'','chuku-hari':''}, kikakeState={meiten:'',anten:''}, toolState={desk:null,chair:null,mic:null,other:null}, itatsukiState=null, nasiMode=false, netaList=[]
 
-function login() {
-  if (document.getElementById('pw-input').value === ADMIN_PASSWORD) {
-    sessionStorage.setItem('admin_authed', '1')
-    document.getElementById('pw-error').style.display = 'none'
-    showAdmin()
-  } else {
-    document.getElementById('pw-error').style.display = 'block'
+async function init() {
+  const { data: { session } } = await sb.auth.getSession()
+  if (!session) { location.href='index.html'; return }
+  user=session.user
+  const { data: profile } = await sb.from('profiles').select('*').eq('id',user.id).single()
+  document.getElementById('nav-user').textContent=profile?.display_name||user.email
+
+  const { data: lives } = await sb.from('lives').select('*').order('created_at',{ascending:false})
+  const sel=document.getElementById('live-select')
+  ;(lives||[]).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.name;sel.appendChild(o)})
+
+  const { data: units } = await sb.from('units').select('*').eq('user_id',user.id).order('created_at')
+  const uSel=document.getElementById('neta-unit-sel')
+  ;(units||[]).forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;uSel.appendChild(o)})
+}
+
+async function loadNeta() {
+  const unitId=document.getElementById('neta-unit-sel').value
+  const sel=document.getElementById('neta-sel')
+  sel.innerHTML='<option value="">選択してください</option>'
+  if (!unitId) return
+  const { data } = await sb.from('neta').select('*').eq('unit_id',unitId).order('created_at')
+  netaList=data||[]
+  netaList.forEach(n=>{const o=document.createElement('option');o.value=n.id;o.textContent=n.title;sel.appendChild(o)})
+}
+
+function applyNeta() {
+  const neta=netaList.find(n=>n.id===document.getElementById('neta-sel').value)
+  if (!neta) return
+  // コンビ名をユニット名で自動入力（未入力の場合のみ）
+  const combiEl = document.getElementById('combi-name')
+  const unitName = document.getElementById('neta-unit-sel').options[document.getElementById('neta-unit-sel').selectedIndex]?.text
+  if (!combiEl.value && unitName) combiEl.value = unitName
+  if (neta.format) setFormat(neta.format)
+  // 道具を展開して選択
+  if (neta.tools_desk>0) { openTool('desk'); setTool('desk', neta.tools_desk) }
+  if (neta.tools_chair>0) { openTool('chair'); setTool('chair', neta.tools_chair) }
+  if (neta.tools_mic>0) { openTool('mic'); setTool('mic', neta.tools_mic) }
+  if (neta.chuku_on) setToggleByVal('chuku-on',neta.chuku_on)
+  if (neta.chuku_hari) setToggleByVal('chuku-hari',neta.chuku_hari)
+  if (neta.meiten_type) { setKikakeByVal('meiten',neta.meiten_type); if(neta.meiten_detail) document.getElementById('meiten-detail').value=neta.meiten_detail }
+  if (neta.anten_type) { setKikakeByVal('anten',neta.anten_type); if(neta.anten_detail) document.getElementById('anten-detail').value=neta.anten_detail }
+  if (neta.debayashi_full) {
+    if (neta.debayashi_full==='ナシ') { nasiMode=false; setNasi() }
+    else { const p=neta.debayashi_full.split('/'); document.getElementById('debayashi').value=p[0]||''; document.getElementById('debayashi-artist').value=p[1]||''; document.getElementById('debayashi-artist').style.display='block' }
   }
 }
 
-function doLogout() {
-  sessionStorage.removeItem('admin_authed')
-  document.getElementById('admin-screen').style.display = 'none'
-  document.getElementById('login-screen').style.display = 'block'
-  document.getElementById('pw-input').value = ''
+function onLiveSelect() { document.getElementById('form-body').style.display=document.getElementById('live-select').value?'block':'none' }
+
+function setFormat(f) {
+  selectedFormat=f
+  document.querySelectorAll('#format-group .tog-btn').forEach(b=>b.classList.toggle('active-info',b.textContent===f))
+  document.getElementById('manzai-note').style.display=f==='漫才'?'block':'none'
+  document.getElementById('konto-fields').style.display=f!=='漫才'?'block':'none'
+  document.getElementById('debayashi-field').style.display='block'
 }
 
-function showAdmin() {
-  document.getElementById('login-screen').style.display = 'none'
-  document.getElementById('admin-screen').style.display = 'block'
-  fetchLives()
+// 道具トグル
+function toggleTool(type) {
+  const opts=document.getElementById(`${type}-options`)
+  const isOpen=opts.classList.contains('open')
+  if (isOpen) { clearTool(type) } else { openTool(type) }
 }
 
-async function fetchLives() {
-  const { data } = await sb.from('lives').select('*').order('created_at', { ascending: false })
-  const lives = data || []
-  document.getElementById('live-count').textContent = `作成済みライブ（${lives.length}件）`
-  document.getElementById('live-list').innerHTML = lives.length ? lives.map(l => `
-    <div style="border:1px solid #eee;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div>
-          <p style="font-weight:500;font-size:15px;">${l.name}</p>
-          <p class="hint">${[l.date?`開催: ${l.date}`:'', l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
-        </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','entries')" class="btn-sm">提出一覧</button>
-          <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','staff')" class="btn-sm">スタッフ</button>
-          <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}')" class="btn-sm">編集</button>
-          <button onclick="deleteLive('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm btn-danger">削除</button>
-        </div>
-      </div>
-    </div>
-  `).join('') : '<p class="hint">まだライブがありません</p>'
+function openTool(type) {
+  document.getElementById(`${type}-options`).classList.add('open')
+  document.getElementById(`${type}-toggle`).classList.add('active-info')
 }
 
-async function saveLive() {
-  const name = document.getElementById('live-name').value.trim()
-  if (!name) { alert('ライブ名を入力してください'); return }
-  const payload = {
-    name,
-    date: document.getElementById('live-date').value || null,
-    deadline: document.getElementById('live-deadline').value || null
+function clearTool(type) {
+  document.getElementById(`${type}-options`).classList.remove('open')
+  document.getElementById(`${type}-toggle`).classList.remove('active-info')
+  toolState[type]=null
+  // ボタンの選択を解除
+  document.querySelectorAll(`#${type}-options .tog-btn`).forEach(b=>b.classList.remove('active-info'))
+  const ci=document.getElementById(`${type}-custom`)
+  if (ci) { ci.style.display='none'; ci.value='' }
+  if (type==='other') { document.getElementById('other-custom').value='' }
+}
+
+function setTool(type, val) {
+  toolState[type]=val
+  // 数量ボタンのハイライト
+  document.querySelectorAll(`#${type}-options .tog-btn`).forEach(b=>{
+    const txt=b.textContent
+    const match = (val===1&&txt==='1台')||(val===2&&txt==='2台')||(val===1&&txt==='1脚')||(val===2&&txt==='2脚')||(val===1&&txt==='1本')||(val===2&&txt==='2本')||(val==='custom'&&txt==='手動')
+    b.classList.toggle('active-info', match)
+  })
+  const ci=document.getElementById(`${type}-custom`)
+  if (ci) ci.style.display=val==='custom'?'inline-block':'none'
+}
+
+function setItatsuki(val) {
+  itatsukiState=val
+  document.querySelectorAll('#itatsuki-group .tog-btn').forEach(b=>b.classList.remove('active-info'))
+  event.currentTarget.classList.add('active-info')
+  document.getElementById('itatsuki-custom-input').style.display=val==='custom'?'block':'none'
+}
+
+function setToggle(key,val) {
+  toggleState[key]=val
+  const isOn=key==='chuku-on'
+  document.getElementById(isOn?'on-ari':'hari-ari').classList.toggle('active-warn',val==='有り')
+  document.getElementById(isOn?'on-nasi':'hari-nasi').classList.toggle('active-ok',val==='無し')
+  if (key==='chuku-on') document.getElementById('on-file-field').style.display=val==='有り'?'block':'none'
+  const need=toggleState['chuku-on']==='有り'||toggleState['chuku-hari']==='有り'
+  document.getElementById('file-fields').style.display=need?'block':'none'
+  document.getElementById('script-file-field').style.display=need?'block':'none'
+}
+
+function setToggleByVal(key,val) {
+  toggleState[key]=val
+  const isOn=key==='chuku-on'
+  document.getElementById(isOn?'on-ari':'hari-ari').classList.toggle('active-warn',val==='有り')
+  document.getElementById(isOn?'on-nasi':'hari-nasi').classList.toggle('active-ok',val==='無し')
+  if (key==='chuku-on') document.getElementById('on-file-field').style.display=val==='有り'?'block':'none'
+  const need=toggleState['chuku-on']==='有り'||toggleState['chuku-hari']==='有り'
+  document.getElementById('file-fields').style.display=need?'block':'none'
+  document.getElementById('script-file-field').style.display=need?'block':'none'
+}
+
+function setKikake(type,val) {
+  kikakeState[type]=val
+  document.querySelectorAll(`#${type}-group .tog-btn`).forEach(b=>b.classList.remove('active-info'))
+  event.currentTarget.classList.add('active-info')
+  const d=document.getElementById(`${type}-detail`)
+  d.style.display=(val==='台詞明転'||val==='台詞暗転'||val==='その他')?'block':'none'
+  d.placeholder=val==='その他'?'詳細を入力':'台詞を入力'
+}
+
+function setKikakeByVal(type,val) {
+  kikakeState[type]=val
+  document.querySelectorAll(`#${type}-group .tog-btn`).forEach(b=>b.classList.toggle('active-info',b.textContent===val))
+  const d=document.getElementById(`${type}-detail`)
+  d.style.display=(val==='台詞明転'||val==='台詞暗転'||val==='その他')?'block':'none'
+}
+
+function setNasi() { nasiMode=!nasiMode; document.getElementById('nasi-btn').classList.toggle('active-warn',nasiMode); document.getElementById('debayashi').value=nasiMode?'ナシ':''; document.getElementById('debayashi-artist').style.display=nasiMode?'none':'block' }
+function onDebayashiInput() { const v=document.getElementById('debayashi').value; if(v!=='ナシ'){nasiMode=false;document.getElementById('nasi-btn').classList.remove('active-warn')} document.getElementById('debayashi-artist').style.display=(!nasiMode&&v)?'block':'none' }
+
+function getToolsText() {
+  const parts=[]
+  const getVal=(type,unit)=>{
+    if (!toolState[type]) return null
+    if (toolState[type]==='custom') { const v=document.getElementById(`${type}-custom`).value; return v?`${v}${unit}`:null }
+    return `${toolState[type]}${unit}`
   }
-  const editId = document.getElementById('edit-live-id').value
-  if (editId) {
-    await sb.from('lives').update(payload).eq('id', editId)
-  } else {
-    await sb.from('lives').insert(payload)
-  }
-  cancelEdit()
-  fetchLives()
+  if (getVal('desk','台')) parts.push(`机${getVal('desk','台')}`)
+  if (getVal('chair','脚')) parts.push(`椅子${getVal('chair','脚')}`)
+  if (getVal('mic','本')) parts.push(`マイク${getVal('mic','本')}`)
+  const other=document.getElementById('other-custom')?.value
+  if (toolState.other!==null && other) parts.push(other)
+  return parts.join(' ')||'ナシ'
 }
 
-function startEdit(id, name, date, deadline) {
-  document.getElementById('edit-live-id').value = id
-  document.getElementById('live-name').value = name
-  document.getElementById('live-date').value = date
-  document.getElementById('live-deadline').value = deadline
-  document.getElementById('form-title').textContent = 'ライブを編集'
-  document.getElementById('save-btn').textContent = '変更を保存'
-  document.getElementById('cancel-btn').style.display = 'inline-block'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+function getItatsuki() { return itatsukiState===null?null : itatsukiState==='custom'?document.getElementById('itatsuki-custom-input').value+'人':itatsukiState+'人' }
+function getMeiten() { const t=kikakeState.meiten; if(!t) return null; const d=document.getElementById('meiten-detail').value; return (t==='台詞明転'||t==='その他')&&d?`${t}：${d}`:t }
+function getAnten() { const t=kikakeState.anten; if(!t) return null; const d=document.getElementById('anten-detail').value; return (t==='台詞暗転'||t==='その他')&&d?`${t}：${d}`:t }
+
+async function handleSubmit() {
+  const liveId=document.getElementById('live-select').value, combiName=document.getElementById('combi-name').value.trim()
+  if (!liveId||!combiName||!selectedFormat) { alert('ライブ、コンビ名、形式は必須です'); return }
+  const btn=document.getElementById('submit-btn'); btn.textContent='送信中...'; btn.disabled=true
+  try {
+    const deb=document.getElementById('debayashi').value, debArtist=document.getElementById('debayashi-artist').value
+    const debFull=deb==='ナシ'?'ナシ':[deb,debArtist].filter(Boolean).join('/')
+    let onPath=null, scriptPath=null
+    const onFile=document.getElementById('on-file')?.files[0], scriptFile=document.getElementById('script-file')?.files[0]
+    if (onFile){const p=`on/${Date.now()}_${onFile.name}`;await sb.storage.from('kikkake-files').upload(p,onFile);onPath=p}
+    if (scriptFile){const p=`script/${Date.now()}_${scriptFile.name}`;await sb.storage.from('kikkake-files').upload(p,scriptFile);scriptPath=p}
+    await sb.from('entries').upsert({
+      live_id:liveId, combi_name:combiName,
+      order:document.getElementById('order').value?parseInt(document.getElementById('order').value):null,
+      format:selectedFormat, tools:selectedFormat!=='漫才'?getToolsText():null,
+      itatsuki:selectedFormat!=='漫才'?getItatsuki():null,
+      chuku_on:toggleState['chuku-on']||null, chuku_hari:toggleState['chuku-hari']||null,
+      meiten_kikake:getMeiten(), anten_kikake:getAnten(),
+      debayashi_full:debFull||null, on_file_path:onPath, script_file_path:scriptPath,
+      is_updated:true, updated_at:new Date().toISOString()
+    },{onConflict:'live_id,combi_name'})
+    document.getElementById('form-screen').style.display='none'
+    document.getElementById('done-screen').style.display='block'
+  } catch(e) { alert('エラーが発生しました'); console.error(e) }
+  btn.textContent='提出する'; btn.disabled=false
 }
 
-function cancelEdit() {
-  document.getElementById('edit-live-id').value = ''
-  document.getElementById('live-name').value = ''
-  document.getElementById('live-date').value = ''
-  document.getElementById('live-deadline').value = ''
-  document.getElementById('form-title').textContent = '新しいライブを追加'
-  document.getElementById('save-btn').textContent = 'ライブを作成'
-  document.getElementById('cancel-btn').style.display = 'none'
-}
-
-async function deleteLive(id, name) {
-  if (!confirm(`「${name}」を削除しますか？\n提出データも全て消えます`)) return
-  await sb.from('lives').delete().eq('id', id)
-  if (currentLiveId === id) closeDetail()
-  fetchLives()
-}
-
-function openDetail(liveId, liveName, tab) {
-  currentLiveId = liveId
-  currentLiveName = liveName
-  document.getElementById('detail-live-name').textContent = liveName
-  document.getElementById('detail-section').style.display = 'block'
-  document.getElementById('detail-section').scrollIntoView({ behavior: 'smooth' })
-  switchTab(tab)
-}
-
-function switchTab(tab) {
-  document.getElementById('tab-entries').classList.toggle('active', tab === 'entries')
-  document.getElementById('tab-staff').classList.toggle('active', tab === 'staff')
-  document.getElementById('panel-entries').style.display = tab === 'entries' ? 'block' : 'none'
-  document.getElementById('panel-staff').style.display = tab === 'staff' ? 'block' : 'none'
-  if (tab === 'entries') loadEntries()
-  if (tab === 'staff') loadStaff()
-}
-
-async function loadEntries() {
-  const { data } = await sb.from('entries').select('*').eq('live_id', currentLiveId).order('order', { ascending: true })
-  const entries = data || []
-  if (!entries.length) {
-    document.getElementById('entries-table').style.display = 'none'
-    document.getElementById('entries-empty').style.display = 'block'
-    return
-  }
-  document.getElementById('entries-empty').style.display = 'none'
-  document.getElementById('entries-table').style.display = 'table'
-  document.getElementById('entries-body').innerHTML = entries.map(e => {
-    const onUrl = e.on_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.on_file_path).data.publicUrl : null
-    const scriptUrl = e.script_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.script_file_path).data.publicUrl : null
-    return `<tr>
-      <td>${e.order ?? '<span class="muted">−</span>'}</td>
-      <td style="font-weight:500;white-space:nowrap;">${e.combi_name}${e.is_updated ? '<span class="badge badge-updated">更新</span>' : ''}</td>
-      <td>${e.format ? `<span class="badge badge-info">${e.format}</span>` : '<span class="muted">−</span>'}</td>
-      <td>${e.tools || '<span class="muted">−</span>'}</td>
-      <td>${e.itatsuki || '<span class="muted">−</span>'}</td>
-      <td>${e.chuku_on === '有り' ? '<span class="badge badge-warn">有り</span>' : e.chuku_on === '無し' ? '<span class="badge badge-ok">無し</span>' : '<span class="muted">−</span>'}</td>
-      <td>${e.chuku_hari === '有り' ? '<span class="badge badge-warn">有り</span>' : e.chuku_hari === '無し' ? '<span class="badge badge-ok">無し</span>' : '<span class="muted">−</span>'}</td>
-      <td>${e.meiten_kikake || '<span class="muted">−</span>'}</td>
-      <td>${e.anten_kikake || '<span class="muted">−</span>'}</td>
-      <td style="white-space:nowrap;">${e.debayashi_full || '<span class="muted">−</span>'}</td>
-      <td>${onUrl ? `<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
-      <td>${scriptUrl ? `<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
-      <td><button onclick="deleteEntry('${e.id}')" class="btn-sm btn-danger">削除</button></td>
-    </tr>`
-  }).join('')
-}
-
-async function loadStaff() {
-  const { data: sl } = await sb.from('staff_lives')
-    .select('user_id, profiles(display_name, email)')
-    .eq('live_id', currentLiveId)
-  const list = document.getElementById('staff-list')
-  if (!sl || !sl.length) {
-    list.innerHTML = '<p class="hint">参加スタッフがまだいません</p>'
-    return
-  }
-  list.innerHTML = `
-    <p class="hint" style="margin-bottom:12px;">参加スタッフ ${sl.length}名</p>
-    ${sl.map((s, i) => `
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0;">
-        <div style="width:32px;height:32px;border-radius:50%;background:#cfe2ff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#084298;flex-shrink:0;">
-          ${(s.profiles?.display_name || s.profiles?.email || '?')[0].toUpperCase()}
-        </div>
-        <div>
-          <p style="font-weight:500;font-size:14px;">${s.profiles?.display_name || '名前未設定'}</p>
-          <p class="hint">${s.profiles?.email || ''}</p>
-        </div>
-      </div>
-    `).join('')}
-  `
-}
-
-async function deleteEntry(id) {
-  if (!confirm('この提出データを削除しますか？')) return
-  await sb.from('entries').delete().eq('id', id)
-  loadEntries()
-}
-
-function closeDetail() {
-  document.getElementById('detail-section').style.display = 'none'
-  currentLiveId = null
-  currentLiveName = ''
-}
-
-if (sessionStorage.getItem('admin_authed') === '1') showAdmin()
+function resetForm() { location.reload() }
+function logout() { sb.auth.signOut().then(()=>location.href='index.html') }
+init()
 </script>
 </body>
 </html>
