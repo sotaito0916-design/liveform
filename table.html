@@ -7,15 +7,23 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
 <style>
-.edit-input { width:100%; padding:4px 6px; font-size:12px; border:1px solid #0d6efd; border-radius:4px; }
-@media print { nav, button, .edit-btn { display:none!important; } }
+.tool-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.tool-toggle { padding:7px 14px; font-size:13px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; transition:all .12s; }
+.tool-toggle.active-info { background:#cfe2ff; border:2px solid #0d6efd; color:#084298; font-weight:600; }
+.tool-options { display:none; gap:6px; flex-wrap:wrap; align-items:center; }
+.tool-options.open { display:flex; }
+.pdf-table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:20px; }
+.pdf-table th { background:#f5f5f5; padding:7px 8px; text-align:left; border:1px solid #ddd; font-weight:600; font-size:11px; white-space:nowrap; }
+.pdf-table td { padding:7px 8px; border:1px solid #ddd; vertical-align:top; word-break:break-all; max-width:120px; }
+.pdf-table td.nowrap { white-space:nowrap; word-break:normal; max-width:none; }
+@media print { nav,button{display:none!important} body>*{display:none!important} #pdf-preview{display:block!important;position:static!important;background:none!important} #pdf-preview>div{width:100%!important;max-height:none!important;border-radius:0!important} #pdf-preview>div>div:first-child{display:none!important} }
 </style>
 </head>
 <body>
 <nav id="main-nav">
   <div class="nav-right">
     <span class="nav-user" id="nav-user"></span>
-    <button class="btn-sm" onclick="logout()" id="nav-logout">ログアウト</button>
+    <button class="btn-sm" onclick="logout()">ログアウト</button>
   </div>
 </nav>
 <main>
@@ -31,7 +39,7 @@
         <tr>
           <th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th>
           <th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th>
-          <th>音源</th><th>台本</th><th id="edit-col" style="display:none;">編集</th>
+          <th>音源</th><th>台本</th><th id="edit-col" style="display:none;"></th>
         </tr>
       </thead>
       <tbody id="table-body"></tbody>
@@ -53,7 +61,7 @@
   </div>
 </div>
 
-<!-- スタッフ編集パスワードモーダル -->
+<!-- パスワードモーダル -->
 <div id="edit-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:10px;padding:24px;width:90%;max-width:360px;">
     <h3 style="margin-bottom:16px;">編集モードに入る</h3>
@@ -67,13 +75,154 @@
   </div>
 </div>
 
-<style>
-.pdf-table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:20px; }
-.pdf-table th { background:#f5f5f5; padding:7px 8px; text-align:left; border:1px solid #ddd; font-weight:600; font-size:11px; white-space:nowrap; }
-.pdf-table td { padding:7px 8px; border:1px solid #ddd; vertical-align:top; word-break:break-all; max-width:120px; }
-.pdf-table td.nowrap { white-space:nowrap; word-break:normal; max-width:none; }
-@media print { body>*{display:none!important} #pdf-preview{display:block!important;position:static!important;background:none!important} #pdf-preview>div{width:100%!important;max-height:none!important;border-radius:0!important} #pdf-preview>div>div:first-child{display:none!important} }
-</style>
+<!-- 編集フォームモーダル -->
+<div id="edit-form-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;">
+  <div style="background:#fff;border-radius:10px;width:90%;max-width:560px;margin:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:1;">
+      <h2 style="margin-bottom:0;font-size:17px;" id="edit-form-title">きっかけを編集</h2>
+      <button onclick="closeEditForm()" class="btn-sm">閉じる</button>
+    </div>
+    <div style="padding:20px;">
+      <input type="hidden" id="ef-entry-id">
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+        <div class="field"><label>① コンビ名</label><input id="ef-combi" placeholder="例: 誕生石"></div>
+        <div class="field"><label>出番順</label><input id="ef-order" type="number" placeholder="例: 3"></div>
+      </div>
+
+      <div class="field">
+        <label>② 形式</label>
+        <div class="btn-group" id="ef-format-group">
+          <button class="tog-btn" onclick="efSetFormat('漫才')">漫才</button>
+          <button class="tog-btn" onclick="efSetFormat('ピン')">ピン</button>
+          <button class="tog-btn" onclick="efSetFormat('コント')">コント</button>
+        </div>
+      </div>
+
+      <div id="ef-manzai-note" style="display:none;" class="banner-info">漫才は①②⑧のみ入力してください</div>
+
+      <div id="ef-konto-fields" style="display:none;">
+        <!-- 道具 -->
+        <div class="field">
+          <label>③ 使用道具</label>
+          <p class="hint" style="margin-bottom:8px;">使用する道具をクリックして数を選んでください</p>
+          <div class="tool-row">
+            <button class="tool-toggle" id="ef-desk-toggle" onclick="efToggleTool('desk')">机</button>
+            <div class="tool-options" id="ef-desk-options">
+              <button class="tog-btn" onclick="efSetTool('desk',1)">1台</button>
+              <button class="tog-btn" onclick="efSetTool('desk',2)">2台</button>
+              <button class="tog-btn" onclick="efSetTool('desk','custom')">手動</button>
+              <input id="ef-desk-custom" type="number" placeholder="台数" style="width:70px;display:none;" min="1">
+              <button class="tog-btn" style="color:#dc3545;" onclick="efClearTool('desk')">✕</button>
+            </div>
+          </div>
+          <div class="tool-row">
+            <button class="tool-toggle" id="ef-chair-toggle" onclick="efToggleTool('chair')">椅子</button>
+            <div class="tool-options" id="ef-chair-options">
+              <button class="tog-btn" onclick="efSetTool('chair',1)">1脚</button>
+              <button class="tog-btn" onclick="efSetTool('chair',2)">2脚</button>
+              <button class="tog-btn" onclick="efSetTool('chair','custom')">手動</button>
+              <input id="ef-chair-custom" type="number" placeholder="脚数" style="width:70px;display:none;" min="1">
+              <button class="tog-btn" style="color:#dc3545;" onclick="efClearTool('chair')">✕</button>
+            </div>
+          </div>
+          <div class="tool-row">
+            <button class="tool-toggle" id="ef-mic-toggle" onclick="efToggleTool('mic')">ハンドマイク</button>
+            <div class="tool-options" id="ef-mic-options">
+              <button class="tog-btn" onclick="efSetTool('mic',1)">1本</button>
+              <button class="tog-btn" onclick="efSetTool('mic',2)">2本</button>
+              <button class="tog-btn" onclick="efSetTool('mic','custom')">手動</button>
+              <input id="ef-mic-custom" type="number" placeholder="本数" style="width:70px;display:none;" min="1">
+              <button class="tog-btn" style="color:#dc3545;" onclick="efClearTool('mic')">✕</button>
+            </div>
+          </div>
+          <div class="tool-row">
+            <button class="tool-toggle" id="ef-other-toggle" onclick="efToggleTool('other')">その他</button>
+            <div class="tool-options" id="ef-other-options">
+              <input id="ef-other-custom" type="text" placeholder="道具名を入力" style="flex:1;min-width:160px;">
+              <button class="tog-btn" style="color:#dc3545;" onclick="efClearTool('other')">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 板付 -->
+        <div class="field">
+          <label>④ 板付人数</label>
+          <div class="btn-group" id="ef-itatsuki-group">
+            <button class="tog-btn" onclick="efSetItatsuki(0)">0人</button>
+            <button class="tog-btn" onclick="efSetItatsuki(1)">1人</button>
+            <button class="tog-btn" onclick="efSetItatsuki(2)">2人</button>
+            <button class="tog-btn" onclick="efSetItatsuki(3)">3人</button>
+            <button class="tog-btn" onclick="efSetItatsuki(4)">4人</button>
+            <button class="tog-btn" onclick="efSetItatsuki('custom')">手動</button>
+          </div>
+          <input id="ef-itatsuki-custom" type="number" placeholder="人数" style="width:100px;margin-top:8px;display:none;" min="0">
+        </div>
+
+        <!-- 音照 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field">
+            <label>⑤ 途中音響</label>
+            <div class="btn-group">
+              <button class="tog-btn" id="ef-on-ari" onclick="efSetToggle('on','有り')">有り</button>
+              <button class="tog-btn" id="ef-on-nasi" onclick="efSetToggle('on','無し')">無し</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑤ 途中照明</label>
+            <div class="btn-group">
+              <button class="tog-btn" id="ef-hari-ari" onclick="efSetToggle('hari','有り')">有り</button>
+              <button class="tog-btn" id="ef-hari-nasi" onclick="efSetToggle('hari','無し')">無し</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 照明有りのとき台本提出方法 -->
+        <div id="ef-script-method-field" style="display:none;" class="field">
+          <label>台本の提出方法</label>
+          <div class="btn-group" id="ef-script-method-group">
+            <button class="tog-btn" onclick="efSetScriptMethod('事前提出')">事前提出（PDF）</button>
+            <button class="tog-btn" onclick="efSetScriptMethod('当日持参')">当日持参</button>
+          </div>
+        </div>
+
+        <!-- 明転 -->
+        <div class="field">
+          <label>⑥ 明転きっかけ</label>
+          <div class="btn-group" id="ef-meiten-group">
+            <button class="tog-btn" onclick="efSetKikake('meiten','がなり明転')">がなり明転</button>
+            <button class="tog-btn" onclick="efSetKikake('meiten','台詞明転')">台詞明転</button>
+            <button class="tog-btn" onclick="efSetKikake('meiten','その他')">その他</button>
+          </div>
+          <input id="ef-meiten-detail" placeholder="台詞 / 詳細を入力" style="margin-top:8px;display:none;">
+        </div>
+
+        <!-- 暗転 -->
+        <div class="field">
+          <label>⑦ 暗転きっかけ</label>
+          <div class="btn-group" id="ef-anten-group">
+            <button class="tog-btn" onclick="efSetKikake('anten','挨拶終わり')">挨拶終わり</button>
+            <button class="tog-btn" onclick="efSetKikake('anten','台詞暗転')">台詞暗転</button>
+            <button class="tog-btn" onclick="efSetKikake('anten','その他')">その他</button>
+          </div>
+          <input id="ef-anten-detail" placeholder="台詞 / 詳細を入力" style="margin-top:8px;display:none;">
+        </div>
+      </div>
+
+      <!-- 出囃子 -->
+      <div class="field" id="ef-debayashi-field" style="display:none;">
+        <label>⑧ 出囃子</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input id="ef-debayashi" placeholder="タイトル（例: Anything Goes!）" style="flex:1;" oninput="efOnDebayashiInput()">
+          <button id="ef-nasi-btn" class="tog-btn" onclick="efSetNasi()" style="flex:0 0 56px;">ナシ</button>
+        </div>
+        <input id="ef-debayashi-artist" placeholder="アーティスト名（例: 大黒摩季）" style="display:none;">
+      </div>
+
+      <button onclick="saveEditForm()" class="btn-primary" style="width:100%;" id="ef-save-btn">変更を保存する</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
@@ -81,117 +230,83 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const EDIT_PASSWORD = 'LUDO2026'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-let userRole = 'guest', currentEntries = [], currentLiveName = '', currentLiveId = null, editMode = false
+let userRole='guest', currentEntries=[], currentLiveName='', currentLiveId=null, editMode=false
+let efState={format:'',desk:null,chair:null,mic:null,other:null,on:'',hari:'',meiten:'',anten:'',itatsuki:null,nasiMode:false,scriptMethod:''}
 
 async function init() {
-  const isGuest = sessionStorage.getItem('guest_mode') === '1'
-  const { data: { session } } = await sb.auth.getSession()
-
+  const isGuest = sessionStorage.getItem('guest_mode')==='1'
+  const { data:{ session } } = await sb.auth.getSession()
   if (!session && !isGuest) { location.href='index.html'; return }
 
   const nav = document.getElementById('main-nav')
-
   if (isGuest) {
-    userRole = 'guest'
-    document.getElementById('nav-user').textContent = 'ゲスト'
-    document.getElementById('nav-logout').textContent = 'トップに戻る'
-    nav.innerHTML = `<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">ゲスト</span><button class="btn-sm" onclick="logout()">トップに戻る</button></div>`
+    userRole='guest'
+    nav.innerHTML=`<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">ゲスト</span><button class="btn-sm" onclick="logout()">トップに戻る</button></div>`
   } else {
-    const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single()
-    userRole = profile?.role || 'performer'
-    const name = profile?.display_name || session.user.email
-    if (userRole === 'staff') {
-      nav.innerHTML = `<a href="staff.html">スタッフページ</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
+    const { data:profile } = await sb.from('profiles').select('*').eq('id',session.user.id).single()
+    userRole = profile?.role||'performer'
+    const name = profile?.display_name||session.user.email
+    if (userRole==='staff') {
+      nav.innerHTML=`<a href="staff.html">スタッフページ</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
+      document.getElementById('edit-col').style.display=''
+      const h1area=document.querySelector('main>div:first-child')
+      const editBtn=document.createElement('button')
+      editBtn.id='toggle-edit-btn'; editBtn.textContent='編集モード'; editBtn.className='btn-sm'
+      editBtn.onclick=requestEditMode; h1area.appendChild(editBtn)
     } else {
-      nav.innerHTML = `<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><a href="mypage.html">マイページ</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
+      nav.innerHTML=`<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><a href="mypage.html">マイページ</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
     }
   }
 
-  // スタッフは編集ボタン表示
-  if (userRole === 'staff') {
-    const editCol = document.getElementById('edit-col')
-    editCol.style.display = ''
-    // 編集モード切替ボタンをヘッダに追加
-    const h1area = document.querySelector('main > div:first-child')
-    const editBtn = document.createElement('button')
-    editBtn.id = 'toggle-edit-btn'
-    editBtn.textContent = '編集モード'
-    editBtn.className = 'btn-sm'
-    editBtn.onclick = requestEditMode
-    h1area.appendChild(editBtn)
+  const { data:lives } = await sb.from('lives').select('*').order('created_at',{ascending:false})
+  let displayLives = lives||[]
+  if (userRole==='staff' && session) {
+    const { data:sl } = await sb.from('staff_lives').select('live_id').eq('user_id',session.user.id)
+    const myIds=(sl||[]).map(s=>s.live_id)
+    if (myIds.length) displayLives=displayLives.filter(l=>myIds.includes(l.id))
   }
-
-  const { data: lives } = await sb.from('lives').select('*').order('created_at', { ascending:false })
-  let displayLives = lives || []
-
-  if (userRole === 'staff' && session) {
-    const { data: sl } = await sb.from('staff_lives').select('live_id').eq('user_id', session.user.id)
-    const myIds = (sl||[]).map(s => s.live_id)
-    if (myIds.length) displayLives = displayLives.filter(l => myIds.includes(l.id))
-  }
-
-  const container = document.getElementById('live-btns')
+  const container=document.getElementById('live-btns')
   if (!displayLives.length) { container.innerHTML='<p class="hint">表示できるライブがありません</p>'; return }
-  displayLives.forEach(l => {
-    const btn = document.createElement('button')
-    btn.textContent = l.name; btn.className = 'tog-btn'
-    btn.onclick = () => loadEntries(l.id, l.name, btn)
-    container.appendChild(btn)
+  displayLives.forEach(l=>{
+    const btn=document.createElement('button'); btn.textContent=l.name; btn.className='tog-btn'
+    btn.onclick=()=>loadEntries(l.id,l.name,btn); container.appendChild(btn)
   })
 }
 
 function requestEditMode() {
   if (editMode) {
-    editMode = false
-    document.getElementById('toggle-edit-btn').textContent = '編集モード'
-    document.getElementById('toggle-edit-btn').classList.remove('active-info')
-    if (currentLiveId) loadEntries(currentLiveId, currentLiveName, document.querySelector('#live-btns .active-info'))
-    return
+    editMode=false; document.getElementById('toggle-edit-btn').textContent='編集モード'; document.getElementById('toggle-edit-btn').classList.remove('active-info')
+    if (currentLiveId) loadEntries(currentLiveId,currentLiveName,document.querySelector('#live-btns .active-info')); return
   }
-  document.getElementById('edit-pw-input').value = ''
-  document.getElementById('edit-pw-error').style.display = 'none'
-  document.getElementById('edit-modal').style.display = 'flex'
+  document.getElementById('edit-pw-input').value=''; document.getElementById('edit-pw-error').style.display='none'
+  document.getElementById('edit-modal').style.display='flex'
 }
 
 function verifyEditPw() {
-  if (document.getElementById('edit-pw-input').value === EDIT_PASSWORD) {
-    editMode = true
-    document.getElementById('edit-modal').style.display = 'none'
-    document.getElementById('toggle-edit-btn').textContent = '編集中 ✓'
-    document.getElementById('toggle-edit-btn').classList.add('active-info')
-    if (currentLiveId) loadEntries(currentLiveId, currentLiveName, document.querySelector('#live-btns .active-info'))
-  } else {
-    document.getElementById('edit-pw-error').style.display = 'block'
-  }
+  if (document.getElementById('edit-pw-input').value===EDIT_PASSWORD) {
+    editMode=true; document.getElementById('edit-modal').style.display='none'
+    document.getElementById('toggle-edit-btn').textContent='編集中 ✓'; document.getElementById('toggle-edit-btn').classList.add('active-info')
+    if (currentLiveId) loadEntries(currentLiveId,currentLiveName,document.querySelector('#live-btns .active-info'))
+  } else { document.getElementById('edit-pw-error').style.display='block' }
 }
 
 async function loadEntries(liveId, liveName, btn) {
-  document.querySelectorAll('#live-btns .tog-btn').forEach(b => b.classList.remove('active-info'))
+  document.querySelectorAll('#live-btns .tog-btn').forEach(b=>b.classList.remove('active-info'))
   if (btn) btn.classList.add('active-info')
-  currentLiveId = liveId; currentLiveName = liveName
-  document.getElementById('print-btn').style.display = 'inline-block'
-
-  const { data } = await sb.from('entries').select('*').eq('live_id', liveId).order('order', { ascending:true })
-  currentEntries = data || []
-  const tbody = document.getElementById('table-body')
-  tbody.innerHTML = ''
-
-  if (!currentEntries.length) {
-    document.getElementById('kikkake-table').style.display = 'none'
-    document.getElementById('empty-msg').style.display = 'block'
-    return
-  }
-  document.getElementById('empty-msg').style.display = 'none'
-  document.getElementById('kikkake-table').style.display = 'table'
-
-  currentEntries.forEach(e => {
-    const onUrl = e.on_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.on_file_path).data.publicUrl : null
-    const scriptUrl = e.script_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.script_file_path).data.publicUrl : null
-    const scriptTxt = e.script_method ? e.script_method : (scriptUrl ? '事前提出' : '−')
-    const tr = document.createElement('tr')
-    const showEdit = userRole === 'staff' && editMode
-    tr.innerHTML = `
-      <td>${e.order ?? '<span class="muted">−</span>'}</td>
+  currentLiveId=liveId; currentLiveName=liveName
+  document.getElementById('print-btn').style.display='inline-block'
+  const { data } = await sb.from('entries').select('*').eq('live_id',liveId).order('order',{ascending:true})
+  currentEntries=data||[]
+  const tbody=document.getElementById('table-body'); tbody.innerHTML=''
+  if (!currentEntries.length) { document.getElementById('kikkake-table').style.display='none'; document.getElementById('empty-msg').style.display='block'; return }
+  document.getElementById('empty-msg').style.display='none'; document.getElementById('kikkake-table').style.display='table'
+  currentEntries.forEach(e=>{
+    const onUrl=e.on_file_path?sb.storage.from('kikkake-files').getPublicUrl(e.on_file_path).data.publicUrl:null
+    const scriptUrl=e.script_file_path?sb.storage.from('kikkake-files').getPublicUrl(e.script_file_path).data.publicUrl:null
+    const scriptTxt=e.script_method?e.script_method:(scriptUrl?'事前提出':'−')
+    const tr=document.createElement('tr')
+    tr.innerHTML=`
+      <td>${e.order??'<span class="muted">−</span>'}</td>
       <td style="font-weight:500;white-space:nowrap;">${e.combi_name}${e.is_updated?'<span class="badge badge-updated">更新</span>':''}</td>
       <td>${e.format?`<span class="badge badge-info">${e.format}</span>`:'<span class="muted">−</span>'}</td>
       <td>${e.tools||'<span class="muted">−</span>'}</td>
@@ -201,39 +316,194 @@ async function loadEntries(liveId, liveName, btn) {
       <td>${e.meiten_kikake||'<span class="muted">−</span>'}</td>
       <td>${e.anten_kikake||'<span class="muted">−</span>'}</td>
       <td style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</td>
-      <td>${onUrl?`<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>${e.chuku_on==='有り'?'':''}`:e.chuku_on==='有り'?'<span style="color:#dc3545;font-weight:600;">⚠️未</span>':'<span class="muted">−</span>'}</td>
+      <td>${onUrl?`<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>`:e.chuku_on==='有り'?'<span style="color:#dc3545;font-weight:600;">⚠️未</span>':'<span class="muted">−</span>'}</td>
       <td>${scriptUrl?`<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>`:scriptTxt!=='−'?`<span style="font-size:12px;">${scriptTxt}</span>`:'<span class="muted">−</span>'}</td>
-      ${userRole==='staff'?`<td style="display:${document.getElementById('edit-col').style.display}">${showEdit?`<button class="btn-sm edit-btn" onclick="openEditRow('${e.id}')">編集</button>`:'−'}</td>`:''}
+      ${userRole==='staff'?`<td>${editMode?`<button class="btn-sm" onclick="openEditForm('${e.id}')">編集</button>`:'−'}</td>`:''}
     `
     tbody.appendChild(tr)
   })
 }
 
-function openEditRow(entryId) {
-  const entry = currentEntries.find(e => e.id === entryId)
-  if (!entry) return
-  const order = prompt('出番順を入力してください', entry.order ?? '')
-  if (order === null) return
-  const kikake = prompt('きっかけ内容を修正しますか？\n（変更しない場合はそのままOKを押してください）\n\n現在の明転: ' + (entry.meiten_kikake||'未入力'), entry.meiten_kikake||'')
-  if (kikake === null) return
-  const anten = prompt('暗転きっかけ', entry.anten_kikake||'')
-  if (anten === null) return
-  saveEditRow(entryId, order, kikake, anten)
+// ---- 編集フォーム ----
+function efReset() {
+  efState={format:'',desk:null,chair:null,mic:null,other:null,on:'',hari:'',meiten:'',anten:'',itatsuki:null,nasiMode:false,scriptMethod:''}
+  document.querySelectorAll('#edit-form-modal .tog-btn').forEach(b=>b.classList.remove('active-info','active-warn','active-ok'))
+  document.querySelectorAll('#edit-form-modal .tool-toggle').forEach(b=>b.classList.remove('active-info'))
+  document.querySelectorAll('#edit-form-modal .tool-options').forEach(o=>o.classList.remove('open'))
+  ;['ef-desk-custom','ef-chair-custom','ef-mic-custom'].forEach(id=>{const el=document.getElementById(id);if(el){el.style.display='none';el.value=''}})
+  document.getElementById('ef-other-custom').value=''
+  document.getElementById('ef-itatsuki-custom').style.display='none'
+  document.getElementById('ef-meiten-detail').style.display='none'
+  document.getElementById('ef-anten-detail').style.display='none'
+  document.getElementById('ef-debayashi-field').style.display='none'
+  document.getElementById('ef-manzai-note').style.display='none'
+  document.getElementById('ef-konto-fields').style.display='none'
+  document.getElementById('ef-script-method-field').style.display='none'
+  document.getElementById('ef-nasi-btn').classList.remove('active-warn')
+  document.getElementById('ef-debayashi').value=''
+  document.getElementById('ef-debayashi-artist').value=''
+  document.getElementById('ef-debayashi-artist').style.display='none'
 }
 
-async function saveEditRow(entryId, order, meiten, anten) {
-  await sb.from('entries').update({
-    order: order !== '' ? parseInt(order) : null,
-    meiten_kikake: meiten || null,
-    anten_kikake: anten || null,
-    updated_at: new Date().toISOString()
-  }).eq('id', entryId)
-  loadEntries(currentLiveId, currentLiveName, document.querySelector('#live-btns .active-info'))
+function openEditForm(entryId) {
+  const e=currentEntries.find(e=>e.id===entryId); if(!e) return
+  efReset()
+  document.getElementById('ef-entry-id').value=e.id
+  document.getElementById('ef-combi').value=e.combi_name||''
+  document.getElementById('ef-order').value=e.order||''
+  if (e.format) efSetFormat(e.format)
+  // 道具を解析して設定
+  if (e.tools && e.tools!=='ナシ') {
+    const t=e.tools
+    const deskM=t.match(/机(\d+)台/); if(deskM){efOpenTool('desk');efSetToolVal('desk',parseInt(deskM[1]))}
+    const chairM=t.match(/椅子(\d+)脚/); if(chairM){efOpenTool('chair');efSetToolVal('chair',parseInt(chairM[1]))}
+    const micM=t.match(/マイク(\d+)本/); if(micM){efOpenTool('mic');efSetToolVal('mic',parseInt(micM[1]))}
+  }
+  if (e.itatsuki) {
+    const num=parseInt(e.itatsuki)
+    if (!isNaN(num)&&num<=4) { efState.itatsuki=num; document.querySelectorAll('#ef-itatsuki-group .tog-btn').forEach(b=>b.classList.toggle('active-info',b.textContent===num+'人')) }
+    else { efState.itatsuki='custom'; document.getElementById('ef-itatsuki-custom').style.display='block'; document.getElementById('ef-itatsuki-custom').value=String(e.itatsuki).replace('人','') }
+  }
+  if (e.chuku_on) efSetToggleVal('on',e.chuku_on)
+  if (e.chuku_hari) efSetToggleVal('hari',e.chuku_hari)
+  if (e.script_method) efSetScriptMethod(e.script_method)
+  if (e.meiten_kikake) {
+    const parts=e.meiten_kikake.split('：'); efSetKikakeVal('meiten',parts[0]); if(parts[1]) document.getElementById('ef-meiten-detail').value=parts[1]
+  }
+  if (e.anten_kikake) {
+    const parts=e.anten_kikake.split('：'); efSetKikakeVal('anten',parts[0]); if(parts[1]) document.getElementById('ef-anten-detail').value=parts[1]
+  }
+  if (e.debayashi_full) {
+    document.getElementById('ef-debayashi-field').style.display='block'
+    if (e.debayashi_full==='ナシ') { efState.nasiMode=false; efSetNasi() }
+    else { const p=e.debayashi_full.split('/'); document.getElementById('ef-debayashi').value=p[0]||''; if(p[1]){document.getElementById('ef-debayashi-artist').value=p[1];document.getElementById('ef-debayashi-artist').style.display='block'} }
+  }
+  document.getElementById('edit-form-modal').style.display='flex'
+}
+
+function closeEditForm() { document.getElementById('edit-form-modal').style.display='none' }
+
+function efSetFormat(f) {
+  efState.format=f
+  document.querySelectorAll('#ef-format-group .tog-btn').forEach(b=>b.classList.toggle('active-info',b.textContent===f))
+  document.getElementById('ef-manzai-note').style.display=f==='漫才'?'block':'none'
+  document.getElementById('ef-konto-fields').style.display=f!=='漫才'?'block':'none'
+  document.getElementById('ef-debayashi-field').style.display='block'
+}
+
+function efToggleTool(type) { document.getElementById(`ef-${type}-options`).classList.contains('open')?efClearTool(type):efOpenTool(type) }
+function efOpenTool(type) { document.getElementById(`ef-${type}-options`).classList.add('open'); document.getElementById(`ef-${type}-toggle`).classList.add('active-info'); if(!efState[type]) efState[type]='open' }
+function efClearTool(type) {
+  document.getElementById(`ef-${type}-options`).classList.remove('open'); document.getElementById(`ef-${type}-toggle`).classList.remove('active-info'); efState[type]=null
+  document.querySelectorAll(`#ef-${type}-options .tog-btn`).forEach(b=>b.classList.remove('active-info'))
+  const ci=document.getElementById(`ef-${type}-custom`); if(ci){ci.style.display='none';ci.value=''}
+  if(type==='other') document.getElementById('ef-other-custom').value=''
+}
+function efSetTool(type, val) {
+  efState[type]=val
+  event.currentTarget.closest('.tool-options').querySelectorAll('.tog-btn').forEach(b=>b.classList.remove('active-info'))
+  event.currentTarget.classList.add('active-info')
+  const ci=document.getElementById(`ef-${type}-custom`); if(ci) ci.style.display=val==='custom'?'inline-block':'none'
+}
+function efSetToolVal(type, val) {
+  efState[type]=val
+  document.querySelectorAll(`#ef-${type}-options .tog-btn`).forEach(b=>{
+    const t=b.textContent
+    b.classList.toggle('active-info',(val===1&&(t==='1台'||t==='1脚'||t==='1本'))||(val===2&&(t==='2台'||t==='2脚'||t==='2本')))
+  })
+}
+function efSetItatsuki(val) {
+  efState.itatsuki=val
+  document.querySelectorAll('#ef-itatsuki-group .tog-btn').forEach(b=>b.classList.remove('active-info'))
+  event.currentTarget.classList.add('active-info')
+  document.getElementById('ef-itatsuki-custom').style.display=val==='custom'?'block':'none'
+}
+function efSetToggle(key, val) {
+  efState[key]=val
+  const isOn=key==='on'
+  document.getElementById(isOn?'ef-on-ari':'ef-hari-ari').classList.toggle('active-warn',val==='有り')
+  document.getElementById(isOn?'ef-on-nasi':'ef-hari-nasi').classList.toggle('active-ok',val==='無し')
+  if (key==='hari') { document.getElementById('ef-script-method-field').style.display=val==='有り'?'block':'none'; if(val!=='有り'){efState.scriptMethod='';document.querySelectorAll('#ef-script-method-group .tog-btn').forEach(b=>b.classList.remove('active-info'))} }
+}
+function efSetToggleVal(key, val) {
+  efState[key]=val
+  const isOn=key==='on'
+  document.getElementById(isOn?'ef-on-ari':'ef-hari-ari').classList.toggle('active-warn',val==='有り')
+  document.getElementById(isOn?'ef-on-nasi':'ef-hari-nasi').classList.toggle('active-ok',val==='無し')
+  if (key==='hari') document.getElementById('ef-script-method-field').style.display=val==='有り'?'block':'none'
+}
+function efSetScriptMethod(val) {
+  efState.scriptMethod=val
+  document.querySelectorAll('#ef-script-method-group .tog-btn').forEach(b=>b.classList.toggle('active-info',b.textContent===val))
+}
+function efSetKikake(type, val) {
+  efState[type]=val
+  document.querySelectorAll(`#ef-${type}-group .tog-btn`).forEach(b=>b.classList.remove('active-info'))
+  event.currentTarget.classList.add('active-info')
+  const d=document.getElementById(`ef-${type}-detail`)
+  d.style.display=(val==='台詞明転'||val==='台詞暗転'||val==='その他')?'block':'none'
+  d.placeholder=val==='その他'?'詳細を入力':'台詞を入力'
+}
+function efSetKikakeVal(type, val) {
+  efState[type]=val
+  document.querySelectorAll(`#ef-${type}-group .tog-btn`).forEach(b=>b.classList.toggle('active-info',b.textContent===val))
+  const d=document.getElementById(`ef-${type}-detail`)
+  d.style.display=(val==='台詞明転'||val==='台詞暗転'||val==='その他')?'block':'none'
+}
+function efSetNasi() {
+  efState.nasiMode=!efState.nasiMode
+  document.getElementById('ef-nasi-btn').classList.toggle('active-warn',efState.nasiMode)
+  document.getElementById('ef-debayashi').value=efState.nasiMode?'ナシ':''
+  document.getElementById('ef-debayashi-artist').style.display=efState.nasiMode?'none':'block'
+}
+function efOnDebayashiInput() {
+  const v=document.getElementById('ef-debayashi').value
+  if(v!=='ナシ'){efState.nasiMode=false;document.getElementById('ef-nasi-btn').classList.remove('active-warn')}
+  document.getElementById('ef-debayashi-artist').style.display=(!efState.nasiMode&&v)?'block':'none'
+}
+
+function efGetToolsText() {
+  const parts=[]
+  const getVal=(type,unit)=>{ if(!efState[type]||efState[type]==='open') return null; if(efState[type]==='custom'){const v=document.getElementById(`ef-${type}-custom`)?.value;return v?`${v}${unit}`:null}; return `${efState[type]}${unit}` }
+  if(getVal('desk','台')) parts.push(`机${getVal('desk','台')}`)
+  if(getVal('chair','脚')) parts.push(`椅子${getVal('chair','脚')}`)
+  if(getVal('mic','本')) parts.push(`マイク${getVal('mic','本')}`)
+  const other=document.getElementById('ef-other-custom')?.value; if(efState.other&&other) parts.push(other)
+  return parts.join(' ')||'ナシ'
+}
+function efGetItatsuki() { if(efState.itatsuki===null) return null; if(efState.itatsuki==='custom') return document.getElementById('ef-itatsuki-custom').value+'人'; return efState.itatsuki+'人' }
+function efGetMeiten() { const t=efState.meiten; if(!t) return null; const d=document.getElementById('ef-meiten-detail').value; return (t==='台詞明転'||t==='その他')&&d?`${t}：${d}`:t }
+function efGetAnten() { const t=efState.anten; if(!t) return null; const d=document.getElementById('ef-anten-detail').value; return (t==='台詞暗転'||t==='その他')&&d?`${t}：${d}`:t }
+
+async function saveEditForm() {
+  const entryId=document.getElementById('ef-entry-id').value
+  const btn=document.getElementById('ef-save-btn'); btn.textContent='保存中...'; btn.disabled=true
+  const deb=document.getElementById('ef-debayashi').value, debArtist=document.getElementById('ef-debayashi-artist').value
+  const debFull=deb==='ナシ'?'ナシ':[deb,debArtist].filter(Boolean).join('/')
+  try {
+    await sb.from('entries').update({
+      combi_name: document.getElementById('ef-combi').value.trim()||null,
+      order: document.getElementById('ef-order').value?parseInt(document.getElementById('ef-order').value):null,
+      format: efState.format||null,
+      tools: efState.format!=='漫才'?efGetToolsText():null,
+      itatsuki: efState.format!=='漫才'?efGetItatsuki():null,
+      chuku_on: efState.on||null,
+      chuku_hari: efState.hari||null,
+      script_method: efState.scriptMethod||null,
+      meiten_kikake: efGetMeiten(),
+      anten_kikake: efGetAnten(),
+      debayashi_full: debFull||null,
+      updated_at: new Date().toISOString()
+    }).eq('id',entryId)
+    closeEditForm()
+    loadEntries(currentLiveId,currentLiveName,document.querySelector('#live-btns .active-info'))
+  } catch(e) { alert('エラーが発生しました'); console.error(e) }
+  btn.textContent='変更を保存する'; btn.disabled=false
 }
 
 function openPdf() {
-  document.getElementById('pdf-title').textContent = `${currentLiveName} きっかけ表`
-  const rows = currentEntries.map(e => `<tr>
+  document.getElementById('pdf-title').textContent=`${currentLiveName} きっかけ表`
+  const rows=currentEntries.map(e=>`<tr>
     <td class="nowrap">${e.order??'−'}</td>
     <td class="nowrap" style="font-weight:600;">${e.combi_name}${e.is_updated?'<span style="font-size:10px;background:#fff3cd;color:#856404;padding:1px 4px;border-radius:99px;margin-left:4px;">更新</span>':''}</td>
     <td class="nowrap">${e.format?`<span style="background:#cfe2ff;color:#084298;padding:1px 6px;border-radius:99px;font-size:10px;">${e.format}</span>`:'−'}</td>
@@ -245,22 +515,13 @@ function openPdf() {
     <td>${e.anten_kikake||'−'}</td>
     <td>${e.debayashi_full||'−'}</td>
   </tr>`).join('')
-  document.getElementById('pdf-body').innerHTML = `
-    <div style="margin-bottom:16px;">
-      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${currentLiveName}</h2>
-      <p style="font-size:12px;color:#888;">出力日: ${new Date().toLocaleDateString('ja-JP')}</p>
-    </div>
-    <table class="pdf-table">
-      <thead><tr><th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th><th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`
-  document.getElementById('pdf-preview').style.display = 'flex'
+  document.getElementById('pdf-body').innerHTML=`
+    <div style="margin-bottom:16px;"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${currentLiveName}</h2><p style="font-size:12px;color:#888;">出力日: ${new Date().toLocaleDateString('ja-JP')}</p></div>
+    <table class="pdf-table"><thead><tr><th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th><th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th></tr></thead><tbody>${rows}</tbody></table>`
+  document.getElementById('pdf-preview').style.display='flex'
 }
 
-function logout() {
-  sessionStorage.removeItem('guest_mode')
-  sb.auth.signOut().then(() => location.href='index.html')
-}
+function logout() { sessionStorage.removeItem('guest_mode'); sb.auth.signOut().then(()=>location.href='index.html') }
 init()
 </script>
 </body>
