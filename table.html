@@ -7,47 +7,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
 <style>
-#pdf-preview {
-  display:none;
-  position:fixed; top:0; left:0; right:0; bottom:0;
-  background:rgba(0,0,0,0.6); z-index:1000;
-  align-items:center; justify-content:center;
-}
-#pdf-preview.open { display:flex; }
-#pdf-content {
-  background:#fff; border-radius:10px; width:90%; max-width:800px;
-  max-height:90vh; overflow-y:auto; padding:0;
-}
-#pdf-header {
-  display:flex; justify-content:space-between; align-items:center;
-  padding:16px 20px; border-bottom:1px solid #eee; position:sticky; top:0; background:#fff; z-index:1;
-}
-#pdf-body { padding:20px; }
-
-@media print {
-  body > * { display:none !important; }
-  #pdf-preview { display:block !important; position:static !important; background:none !important; }
-  #pdf-content { width:100% !important; max-height:none !important; border-radius:0 !important; box-shadow:none !important; }
-  #pdf-header { display:none !important; }
-  #pdf-body { padding:0 !important; }
-}
-
-.pdf-table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:20px; }
-.pdf-table th { background:#f5f5f5; padding:7px 8px; text-align:left; border:1px solid #ddd; font-weight:600; font-size:11px; white-space:nowrap; }
-.pdf-table td { padding:7px 8px; border:1px solid #ddd; vertical-align:top; word-break:break-all; max-width:120px; }
-.pdf-table td.nowrap { white-space:nowrap; word-break:normal; max-width:none; }
-.pdf-badge { display:inline-block; padding:1px 6px; border-radius:99px; font-size:10px; }
-.pdf-badge-info { background:#cfe2ff; color:#084298; }
-.pdf-badge-warn { background:#fff3cd; color:#856404; }
-.pdf-badge-ok   { background:#d1e7dd; color:#0f5132; }
-.pdf-badge-updated { background:#fff3cd; color:#856404; margin-left:4px; }
+.edit-input { width:100%; padding:4px 6px; font-size:12px; border:1px solid #0d6efd; border-radius:4px; }
+@media print { nav, button, .edit-btn { display:none!important; } }
 </style>
 </head>
 <body>
 <nav id="main-nav">
   <div class="nav-right">
     <span class="nav-user" id="nav-user"></span>
-    <button class="btn-sm" onclick="logout()">ログアウト</button>
+    <button class="btn-sm" onclick="logout()" id="nav-logout">ログアウト</button>
   </div>
 </nav>
 <main>
@@ -63,7 +31,7 @@
         <tr>
           <th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th>
           <th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th>
-          <th>音源</th><th>台本</th>
+          <th>音源</th><th>台本</th><th id="edit-col" style="display:none;">編集</th>
         </tr>
       </thead>
       <tbody id="table-body"></tbody>
@@ -72,70 +40,99 @@
 </main>
 
 <!-- PDF プレビュー -->
-<div id="pdf-preview">
-  <div id="pdf-content">
-    <div id="pdf-header">
+<div id="pdf-preview" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:10px;width:90%;max-width:800px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;">
       <span id="pdf-title" style="font-weight:600;font-size:15px;"></span>
       <div style="display:flex;gap:8px;">
         <button onclick="window.print()" class="btn-primary btn-sm">印刷 / PDF保存</button>
-        <button onclick="closePdf()" class="btn-sm">閉じる</button>
+        <button onclick="document.getElementById('pdf-preview').style.display='none'" class="btn-sm">閉じる</button>
       </div>
     </div>
-    <div id="pdf-body"></div>
+    <div id="pdf-body" style="padding:20px;"></div>
   </div>
 </div>
+
+<!-- スタッフ編集パスワードモーダル -->
+<div id="edit-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:10px;padding:24px;width:90%;max-width:360px;">
+    <h3 style="margin-bottom:16px;">編集モードに入る</h3>
+    <p class="hint" style="margin-bottom:12px;">スタッフ用パスワードを入力してください</p>
+    <div class="field"><input type="password" id="edit-pw-input" placeholder="パスワード" onkeydown="if(event.key==='Enter') verifyEditPw()"></div>
+    <p id="edit-pw-error" style="color:#dc3545;font-size:13px;margin-bottom:12px;display:none;">パスワードが違います</p>
+    <div style="display:flex;gap:8px;">
+      <button onclick="verifyEditPw()" class="btn-primary" style="flex:1;">確認</button>
+      <button onclick="document.getElementById('edit-modal').style.display='none'">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.pdf-table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:20px; }
+.pdf-table th { background:#f5f5f5; padding:7px 8px; text-align:left; border:1px solid #ddd; font-weight:600; font-size:11px; white-space:nowrap; }
+.pdf-table td { padding:7px 8px; border:1px solid #ddd; vertical-align:top; word-break:break-all; max-width:120px; }
+.pdf-table td.nowrap { white-space:nowrap; word-break:normal; max-width:none; }
+@media print { body>*{display:none!important} #pdf-preview{display:block!important;position:static!important;background:none!important} #pdf-preview>div{width:100%!important;max-height:none!important;border-radius:0!important} #pdf-preview>div>div:first-child{display:none!important} }
+</style>
 
 <script>
 const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
+const EDIT_PASSWORD = 'LUDO2026'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-let currentEntries = []
-let currentLiveName = ''
+let userRole = 'guest', currentEntries = [], currentLiveName = '', currentLiveId = null, editMode = false
 
 async function init() {
+  const isGuest = sessionStorage.getItem('guest_mode') === '1'
   const { data: { session } } = await sb.auth.getSession()
-  if (!session) { location.href='index.html'; return }
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single()
-  const role = profile?.role || 'performer'
-  document.getElementById('nav-user').textContent = profile?.display_name || session.user.email
+
+  if (!session && !isGuest) { location.href='index.html'; return }
 
   const nav = document.getElementById('main-nav')
-  if (role === 'staff') {
-    nav.innerHTML = `
-      <a href="staff.html">スタッフページ</a>
-      <a href="table.html" class="active">きっかけ表</a>
-      <div class="nav-right">
-        <span class="nav-user">${profile?.display_name || session.user.email}</span>
-        <button class="btn-sm" onclick="logout()">ログアウト</button>
-      </div>`
+
+  if (isGuest) {
+    userRole = 'guest'
+    document.getElementById('nav-user').textContent = 'ゲスト'
+    document.getElementById('nav-logout').textContent = 'トップに戻る'
+    nav.innerHTML = `<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">ゲスト</span><button class="btn-sm" onclick="logout()">トップに戻る</button></div>`
   } else {
-    nav.innerHTML = `
-      <a href="form.html">フォーム提出</a>
-      <a href="table.html" class="active">きっかけ表</a>
-      <a href="mypage.html">マイページ</a>
-      <div class="nav-right">
-        <span class="nav-user">${profile?.display_name || session.user.email}</span>
-        <button class="btn-sm" onclick="logout()">ログアウト</button>
-      </div>`
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single()
+    userRole = profile?.role || 'performer'
+    const name = profile?.display_name || session.user.email
+    if (userRole === 'staff') {
+      nav.innerHTML = `<a href="staff.html">スタッフページ</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
+    } else {
+      nav.innerHTML = `<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><a href="mypage.html">マイページ</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
+    }
   }
 
-  let lives = []
-  if (role === 'staff') {
+  // スタッフは編集ボタン表示
+  if (userRole === 'staff') {
+    const editCol = document.getElementById('edit-col')
+    editCol.style.display = ''
+    // 編集モード切替ボタンをヘッダに追加
+    const h1area = document.querySelector('main > div:first-child')
+    const editBtn = document.createElement('button')
+    editBtn.id = 'toggle-edit-btn'
+    editBtn.textContent = '編集モード'
+    editBtn.className = 'btn-sm'
+    editBtn.onclick = requestEditMode
+    h1area.appendChild(editBtn)
+  }
+
+  const { data: lives } = await sb.from('lives').select('*').order('created_at', { ascending:false })
+  let displayLives = lives || []
+
+  if (userRole === 'staff' && session) {
     const { data: sl } = await sb.from('staff_lives').select('live_id').eq('user_id', session.user.id)
     const myIds = (sl||[]).map(s => s.live_id)
-    if (myIds.length) {
-      const { data } = await sb.from('lives').select('*').in('id', myIds).order('created_at', { ascending:false })
-      lives = data || []
-    }
-  } else {
-    const { data } = await sb.from('lives').select('*').order('created_at', { ascending:false })
-    lives = data || []
+    if (myIds.length) displayLives = displayLives.filter(l => myIds.includes(l.id))
   }
 
   const container = document.getElementById('live-btns')
-  if (!lives.length) { container.innerHTML='<p class="hint">表示できるライブがありません</p>'; return }
-  lives.forEach(l => {
+  if (!displayLives.length) { container.innerHTML='<p class="hint">表示できるライブがありません</p>'; return }
+  displayLives.forEach(l => {
     const btn = document.createElement('button')
     btn.textContent = l.name; btn.className = 'tog-btn'
     btn.onclick = () => loadEntries(l.id, l.name, btn)
@@ -143,10 +140,35 @@ async function init() {
   })
 }
 
+function requestEditMode() {
+  if (editMode) {
+    editMode = false
+    document.getElementById('toggle-edit-btn').textContent = '編集モード'
+    document.getElementById('toggle-edit-btn').classList.remove('active-info')
+    if (currentLiveId) loadEntries(currentLiveId, currentLiveName, document.querySelector('#live-btns .active-info'))
+    return
+  }
+  document.getElementById('edit-pw-input').value = ''
+  document.getElementById('edit-pw-error').style.display = 'none'
+  document.getElementById('edit-modal').style.display = 'flex'
+}
+
+function verifyEditPw() {
+  if (document.getElementById('edit-pw-input').value === EDIT_PASSWORD) {
+    editMode = true
+    document.getElementById('edit-modal').style.display = 'none'
+    document.getElementById('toggle-edit-btn').textContent = '編集中 ✓'
+    document.getElementById('toggle-edit-btn').classList.add('active-info')
+    if (currentLiveId) loadEntries(currentLiveId, currentLiveName, document.querySelector('#live-btns .active-info'))
+  } else {
+    document.getElementById('edit-pw-error').style.display = 'block'
+  }
+}
+
 async function loadEntries(liveId, liveName, btn) {
   document.querySelectorAll('#live-btns .tog-btn').forEach(b => b.classList.remove('active-info'))
-  btn.classList.add('active-info')
-  currentLiveName = liveName
+  if (btn) btn.classList.add('active-info')
+  currentLiveId = liveId; currentLiveName = liveName
   document.getElementById('print-btn').style.display = 'inline-block'
 
   const { data } = await sb.from('entries').select('*').eq('live_id', liveId).order('order', { ascending:true })
@@ -165,69 +187,80 @@ async function loadEntries(liveId, liveName, btn) {
   currentEntries.forEach(e => {
     const onUrl = e.on_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.on_file_path).data.publicUrl : null
     const scriptUrl = e.script_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.script_file_path).data.publicUrl : null
+    const scriptTxt = e.script_method ? e.script_method : (scriptUrl ? '事前提出' : '−')
     const tr = document.createElement('tr')
+    const showEdit = userRole === 'staff' && editMode
     tr.innerHTML = `
       <td>${e.order ?? '<span class="muted">−</span>'}</td>
-      <td style="font-weight:500;">${e.combi_name}${e.is_updated ? '<span class="badge badge-updated">更新</span>' : ''}</td>
-      <td>${e.format ? `<span class="badge badge-info">${e.format}</span>` : '<span class="muted">−</span>'}</td>
-      <td>${e.tools || '<span class="muted">−</span>'}</td>
-      <td>${e.itatsuki || '<span class="muted">−</span>'}</td>
-      <td>${e.chuku_on === '有り' ? '<span class="badge badge-warn">有り</span>' : e.chuku_on === '無し' ? '<span class="badge badge-ok">無し</span>' : '<span class="muted">−</span>'}</td>
-      <td>${e.chuku_hari === '有り' ? '<span class="badge badge-warn">有り</span>' : e.chuku_hari === '無し' ? '<span class="badge badge-ok">無し</span>' : '<span class="muted">−</span>'}</td>
-      <td>${e.meiten_kikake || '<span class="muted">−</span>'}</td>
-      <td>${e.anten_kikake || '<span class="muted">−</span>'}</td>
-      <td style="white-space:nowrap;">${e.debayashi_full || '<span class="muted">−</span>'}</td>
-      <td>${onUrl ? `<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
-      <td>${scriptUrl ? `<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>` : '<span class="muted">−</span>'}</td>
+      <td style="font-weight:500;white-space:nowrap;">${e.combi_name}${e.is_updated?'<span class="badge badge-updated">更新</span>':''}</td>
+      <td>${e.format?`<span class="badge badge-info">${e.format}</span>`:'<span class="muted">−</span>'}</td>
+      <td>${e.tools||'<span class="muted">−</span>'}</td>
+      <td>${e.itatsuki||'<span class="muted">−</span>'}</td>
+      <td>${e.chuku_on==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_on==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
+      <td>${e.chuku_hari==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_hari==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
+      <td>${e.meiten_kikake||'<span class="muted">−</span>'}</td>
+      <td>${e.anten_kikake||'<span class="muted">−</span>'}</td>
+      <td style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</td>
+      <td>${onUrl?`<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>${e.chuku_on==='有り'?'':''}`:e.chuku_on==='有り'?'<span style="color:#dc3545;font-weight:600;">⚠️未</span>':'<span class="muted">−</span>'}</td>
+      <td>${scriptUrl?`<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>`:scriptTxt!=='−'?`<span style="font-size:12px;">${scriptTxt}</span>`:'<span class="muted">−</span>'}</td>
+      ${userRole==='staff'?`<td style="display:${document.getElementById('edit-col').style.display}">${showEdit?`<button class="btn-sm edit-btn" onclick="openEditRow('${e.id}')">編集</button>`:'−'}</td>`:''}
     `
     tbody.appendChild(tr)
   })
 }
 
-function openPdf() {
-  document.getElementById('pdf-title').textContent = `${currentLiveName} きっかけ表`
-  const body = document.getElementById('pdf-body')
-
-  const rows = currentEntries.map(e => {
-    const format = e.format ? `<span class="pdf-badge pdf-badge-info">${e.format}</span>` : '−'
-    const on = e.chuku_on === '有り' ? '<span class="pdf-badge pdf-badge-warn">有り</span>' : e.chuku_on === '無し' ? '<span class="pdf-badge pdf-badge-ok">無し</span>' : '−'
-    const hari = e.chuku_hari === '有り' ? '<span class="pdf-badge pdf-badge-warn">有り</span>' : e.chuku_hari === '無し' ? '<span class="pdf-badge pdf-badge-ok">無し</span>' : '−'
-    const updated = e.is_updated ? '<span class="pdf-badge pdf-badge-updated">更新</span>' : ''
-    return `<tr>
-      <td class="nowrap">${e.order ?? '−'}</td>
-      <td class="nowrap" style="font-weight:600;">${e.combi_name}${updated}</td>
-      <td class="nowrap">${format}</td>
-      <td>${e.tools || '−'}</td>
-      <td class="nowrap">${e.itatsuki || '−'}</td>
-      <td class="nowrap">${on}</td>
-      <td class="nowrap">${hari}</td>
-      <td>${e.meiten_kikake || '−'}</td>
-      <td>${e.anten_kikake || '−'}</td>
-      <td>${e.debayashi_full || '−'}</td>
-    </tr>`
-  }).join('')
-
-  const now = new Date().toLocaleDateString('ja-JP')
-  body.innerHTML = `
-    <div style="margin-bottom:16px;">
-      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${currentLiveName}</h2>
-      <p style="font-size:12px;color:#888;">出力日: ${now}</p>
-    </div>
-    <table class="pdf-table">
-      <thead>
-        <tr>
-          <th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th>
-          <th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `
-  document.getElementById('pdf-preview').classList.add('open')
+function openEditRow(entryId) {
+  const entry = currentEntries.find(e => e.id === entryId)
+  if (!entry) return
+  const order = prompt('出番順を入力してください', entry.order ?? '')
+  if (order === null) return
+  const kikake = prompt('きっかけ内容を修正しますか？\n（変更しない場合はそのままOKを押してください）\n\n現在の明転: ' + (entry.meiten_kikake||'未入力'), entry.meiten_kikake||'')
+  if (kikake === null) return
+  const anten = prompt('暗転きっかけ', entry.anten_kikake||'')
+  if (anten === null) return
+  saveEditRow(entryId, order, kikake, anten)
 }
 
-function closePdf() { document.getElementById('pdf-preview').classList.remove('open') }
-function logout() { sb.auth.signOut().then(() => location.href='index.html') }
+async function saveEditRow(entryId, order, meiten, anten) {
+  await sb.from('entries').update({
+    order: order !== '' ? parseInt(order) : null,
+    meiten_kikake: meiten || null,
+    anten_kikake: anten || null,
+    updated_at: new Date().toISOString()
+  }).eq('id', entryId)
+  loadEntries(currentLiveId, currentLiveName, document.querySelector('#live-btns .active-info'))
+}
+
+function openPdf() {
+  document.getElementById('pdf-title').textContent = `${currentLiveName} きっかけ表`
+  const rows = currentEntries.map(e => `<tr>
+    <td class="nowrap">${e.order??'−'}</td>
+    <td class="nowrap" style="font-weight:600;">${e.combi_name}${e.is_updated?'<span style="font-size:10px;background:#fff3cd;color:#856404;padding:1px 4px;border-radius:99px;margin-left:4px;">更新</span>':''}</td>
+    <td class="nowrap">${e.format?`<span style="background:#cfe2ff;color:#084298;padding:1px 6px;border-radius:99px;font-size:10px;">${e.format}</span>`:'−'}</td>
+    <td>${e.tools||'−'}</td>
+    <td class="nowrap">${e.itatsuki||'−'}</td>
+    <td class="nowrap">${e.chuku_on==='有り'?'<span style="background:#fff3cd;color:#856404;padding:1px 6px;border-radius:99px;font-size:10px;">有り</span>':e.chuku_on==='無し'?'<span style="background:#d1e7dd;color:#0f5132;padding:1px 6px;border-radius:99px;font-size:10px;">無し</span>':'−'}</td>
+    <td class="nowrap">${e.chuku_hari==='有り'?'<span style="background:#fff3cd;color:#856404;padding:1px 6px;border-radius:99px;font-size:10px;">有り</span>':e.chuku_hari==='無し'?'<span style="background:#d1e7dd;color:#0f5132;padding:1px 6px;border-radius:99px;font-size:10px;">無し</span>':'−'}</td>
+    <td>${e.meiten_kikake||'−'}</td>
+    <td>${e.anten_kikake||'−'}</td>
+    <td>${e.debayashi_full||'−'}</td>
+  </tr>`).join('')
+  document.getElementById('pdf-body').innerHTML = `
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${currentLiveName}</h2>
+      <p style="font-size:12px;color:#888;">出力日: ${new Date().toLocaleDateString('ja-JP')}</p>
+    </div>
+    <table class="pdf-table">
+      <thead><tr><th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th><th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+  document.getElementById('pdf-preview').style.display = 'flex'
+}
+
+function logout() {
+  sessionStorage.removeItem('guest_mode')
+  sb.auth.signOut().then(() => location.href='index.html')
+}
 init()
 </script>
 </body>
