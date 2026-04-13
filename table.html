@@ -6,10 +6,45 @@
 <title>きっかけ表</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
+<style>
+#pdf-preview {
+  display:none;
+  position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.6); z-index:1000;
+  align-items:center; justify-content:center;
+}
+#pdf-preview.open { display:flex; }
+#pdf-content {
+  background:#fff; border-radius:10px; width:90%; max-width:800px;
+  max-height:90vh; overflow-y:auto; padding:0;
+}
+#pdf-header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:16px 20px; border-bottom:1px solid #eee; position:sticky; top:0; background:#fff; z-index:1;
+}
+#pdf-body { padding:20px; }
+
+@media print {
+  body > * { display:none !important; }
+  #pdf-preview { display:block !important; position:static !important; background:none !important; }
+  #pdf-content { width:100% !important; max-height:none !important; border-radius:0 !important; box-shadow:none !important; }
+  #pdf-header { display:none !important; }
+  #pdf-body { padding:0 !important; }
+}
+
+.pdf-table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:20px; }
+.pdf-table th { background:#f5f5f5; padding:7px 8px; text-align:left; border:1px solid #ddd; font-weight:600; font-size:11px; white-space:nowrap; }
+.pdf-table td { padding:7px 8px; border:1px solid #ddd; vertical-align:top; word-break:break-all; max-width:120px; }
+.pdf-table td.nowrap { white-space:nowrap; word-break:normal; max-width:none; }
+.pdf-badge { display:inline-block; padding:1px 6px; border-radius:99px; font-size:10px; }
+.pdf-badge-info { background:#cfe2ff; color:#084298; }
+.pdf-badge-warn { background:#fff3cd; color:#856404; }
+.pdf-badge-ok   { background:#d1e7dd; color:#0f5132; }
+.pdf-badge-updated { background:#fff3cd; color:#856404; margin-left:4px; }
+</style>
 </head>
 <body>
 <nav id="main-nav">
-  <!-- ロールに応じて動的に生成 -->
   <div class="nav-right">
     <span class="nav-user" id="nav-user"></span>
     <button class="btn-sm" onclick="logout()">ログアウト</button>
@@ -18,7 +53,7 @@
 <main>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
     <h1>きっかけ表</h1>
-    <button onclick="window.print()" id="print-btn" style="display:none;">印刷 / PDF保存</button>
+    <button onclick="openPdf()" id="print-btn" style="display:none;">PDF出力</button>
   </div>
   <div id="live-btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
   <p id="empty-msg" style="color:#888;display:none;">まだ提出がありません</p>
@@ -35,21 +70,36 @@
     </table>
   </div>
 </main>
-<style>@media print{nav,button{display:none!important}}</style>
+
+<!-- PDF プレビュー -->
+<div id="pdf-preview">
+  <div id="pdf-content">
+    <div id="pdf-header">
+      <span id="pdf-title" style="font-weight:600;font-size:15px;"></span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="window.print()" class="btn-primary btn-sm">印刷 / PDF保存</button>
+        <button onclick="closePdf()" class="btn-sm">閉じる</button>
+      </div>
+    </div>
+    <div id="pdf-body"></div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+let currentEntries = []
+let currentLiveName = ''
+
 async function init() {
   const { data: { session } } = await sb.auth.getSession()
-  if (!session) { location.href = 'index.html'; return }
-
+  if (!session) { location.href='index.html'; return }
   const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single()
   const role = profile?.role || 'performer'
   document.getElementById('nav-user').textContent = profile?.display_name || session.user.email
 
-  // ロールに応じてナビを生成
   const nav = document.getElementById('main-nav')
   if (role === 'staff') {
     nav.innerHTML = `
@@ -70,45 +120,41 @@ async function init() {
       </div>`
   }
 
-  // スタッフは担当ライブのみ、演者は全ライブ表示
   let lives = []
   if (role === 'staff') {
     const { data: sl } = await sb.from('staff_lives').select('live_id').eq('user_id', session.user.id)
-    const myIds = (sl || []).map(s => s.live_id)
+    const myIds = (sl||[]).map(s => s.live_id)
     if (myIds.length) {
-      const { data } = await sb.from('lives').select('*').in('id', myIds).order('created_at', { ascending: false })
+      const { data } = await sb.from('lives').select('*').in('id', myIds).order('created_at', { ascending:false })
       lives = data || []
     }
   } else {
-    const { data } = await sb.from('lives').select('*').order('created_at', { ascending: false })
+    const { data } = await sb.from('lives').select('*').order('created_at', { ascending:false })
     lives = data || []
   }
 
   const container = document.getElementById('live-btns')
-  if (!lives.length) {
-    container.innerHTML = '<p class="hint">表示できるライブがありません</p>'
-    return
-  }
+  if (!lives.length) { container.innerHTML='<p class="hint">表示できるライブがありません</p>'; return }
   lives.forEach(l => {
     const btn = document.createElement('button')
-    btn.textContent = l.name
-    btn.className = 'tog-btn'
-    btn.onclick = () => loadEntries(l.id, btn)
+    btn.textContent = l.name; btn.className = 'tog-btn'
+    btn.onclick = () => loadEntries(l.id, l.name, btn)
     container.appendChild(btn)
   })
 }
 
-async function loadEntries(liveId, btn) {
+async function loadEntries(liveId, liveName, btn) {
   document.querySelectorAll('#live-btns .tog-btn').forEach(b => b.classList.remove('active-info'))
   btn.classList.add('active-info')
+  currentLiveName = liveName
   document.getElementById('print-btn').style.display = 'inline-block'
 
-  const { data } = await sb.from('entries').select('*').eq('live_id', liveId).order('order', { ascending: true })
-  const entries = data || []
+  const { data } = await sb.from('entries').select('*').eq('live_id', liveId).order('order', { ascending:true })
+  currentEntries = data || []
   const tbody = document.getElementById('table-body')
   tbody.innerHTML = ''
 
-  if (!entries.length) {
+  if (!currentEntries.length) {
     document.getElementById('kikkake-table').style.display = 'none'
     document.getElementById('empty-msg').style.display = 'block'
     return
@@ -116,7 +162,7 @@ async function loadEntries(liveId, btn) {
   document.getElementById('empty-msg').style.display = 'none'
   document.getElementById('kikkake-table').style.display = 'table'
 
-  entries.forEach(e => {
+  currentEntries.forEach(e => {
     const onUrl = e.on_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.on_file_path).data.publicUrl : null
     const scriptUrl = e.script_file_path ? sb.storage.from('kikkake-files').getPublicUrl(e.script_file_path).data.publicUrl : null
     const tr = document.createElement('tr')
@@ -138,7 +184,50 @@ async function loadEntries(liveId, btn) {
   })
 }
 
-function logout() { sb.auth.signOut().then(() => location.href = 'index.html') }
+function openPdf() {
+  document.getElementById('pdf-title').textContent = `${currentLiveName} きっかけ表`
+  const body = document.getElementById('pdf-body')
+
+  const rows = currentEntries.map(e => {
+    const format = e.format ? `<span class="pdf-badge pdf-badge-info">${e.format}</span>` : '−'
+    const on = e.chuku_on === '有り' ? '<span class="pdf-badge pdf-badge-warn">有り</span>' : e.chuku_on === '無し' ? '<span class="pdf-badge pdf-badge-ok">無し</span>' : '−'
+    const hari = e.chuku_hari === '有り' ? '<span class="pdf-badge pdf-badge-warn">有り</span>' : e.chuku_hari === '無し' ? '<span class="pdf-badge pdf-badge-ok">無し</span>' : '−'
+    const updated = e.is_updated ? '<span class="pdf-badge pdf-badge-updated">更新</span>' : ''
+    return `<tr>
+      <td class="nowrap">${e.order ?? '−'}</td>
+      <td class="nowrap" style="font-weight:600;">${e.combi_name}${updated}</td>
+      <td class="nowrap">${format}</td>
+      <td>${e.tools || '−'}</td>
+      <td class="nowrap">${e.itatsuki || '−'}</td>
+      <td class="nowrap">${on}</td>
+      <td class="nowrap">${hari}</td>
+      <td>${e.meiten_kikake || '−'}</td>
+      <td>${e.anten_kikake || '−'}</td>
+      <td>${e.debayashi_full || '−'}</td>
+    </tr>`
+  }).join('')
+
+  const now = new Date().toLocaleDateString('ja-JP')
+  body.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${currentLiveName}</h2>
+      <p style="font-size:12px;color:#888;">出力日: ${now}</p>
+    </div>
+    <table class="pdf-table">
+      <thead>
+        <tr>
+          <th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th>
+          <th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `
+  document.getElementById('pdf-preview').classList.add('open')
+}
+
+function closePdf() { document.getElementById('pdf-preview').classList.remove('open') }
+function logout() { sb.auth.signOut().then(() => location.href='index.html') }
 init()
 </script>
 </body>
