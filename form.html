@@ -140,6 +140,14 @@
               </div>
             </div>
           </div>
+          <!-- 照明有りのとき：台本提出方法 -->
+          <div id="script-method-field" style="display:none;" class="field">
+            <label>台本の提出方法</label>
+            <div class="btn-group" id="kikake-script-method-group">
+              <button class="tog-btn" onclick="setKikakeScriptMethod('事前提出')">事前提出（PDF）</button>
+              <button class="tog-btn" onclick="setKikakeScriptMethod('当日持参')">当日持参</button>
+            </div>
+          </div>
           <!-- 明転 -->
           <div class="field">
             <label>⑥ 明転きっかけ</label>
@@ -361,11 +369,23 @@ function setItatsuki(val) {
   event.currentTarget.classList.add('active-info')
   document.getElementById('itatsuki-custom-input').style.display=val==='custom'?'block':'none'
 }
+let kikakeScriptMethod = ''
+
+function setKikakeScriptMethod(val) {
+  kikakeScriptMethod = val
+  document.querySelectorAll('#kikake-script-method-group .tog-btn').forEach(b => b.classList.toggle('active-info', b.textContent===val))
+}
+
 function setToggle(key, val) {
   toggleState[key]=val
   const isOn=key==='chuku-on'
   document.getElementById(isOn?'on-ari':'hari-ari').classList.toggle('active-warn',val==='有り')
   document.getElementById(isOn?'on-nasi':'hari-nasi').classList.toggle('active-ok',val==='無し')
+  // 照明有りのとき台本提出方法を表示
+  if (key==='chuku-hari') {
+    document.getElementById('script-method-field').style.display = val==='有り' ? 'block' : 'none'
+    if (val!=='有り') { kikakeScriptMethod=''; document.querySelectorAll('#kikake-script-method-group .tog-btn').forEach(b=>b.classList.remove('active-info')) }
+  }
 }
 function setToggleByVal(key, val) {
   toggleState[key]=val
@@ -423,7 +443,7 @@ async function handleSubmit() {
       itatsuki:selectedFormat!=='漫才'?getItatsuki():null,
       chuku_on:toggleState['chuku-on']||null, chuku_hari:toggleState['chuku-hari']||null,
       meiten_kikake:getMeiten(), anten_kikake:getAnten(),
-      debayashi_full:debFull||null, is_updated:true, updated_at:new Date().toISOString()
+      debayashi_full:debFull||null, script_method:kikakeScriptMethod||null, is_updated:true, updated_at:new Date().toISOString()
     },{onConflict:'live_id,combi_name'})
     document.getElementById('form-screen').style.display='none'
     document.getElementById('done-screen').style.display='block'
