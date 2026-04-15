@@ -319,8 +319,8 @@ async function loadEntries(liveId, liveName, btn) {
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <tr>
             <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</td>
-            <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;">${onUrl?`<a href="${onUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>`:e.chuku_on==='有り'?'<span style="color:#dc3545;font-weight:600;">⚠️未</span>':'<span class="muted">−</span>'}</td>
-            <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;">${scriptUrl?`<a href="${scriptUrl}" target="_blank" download style="color:#0d6efd;font-size:12px;">DL</a>`:scriptTxt!=='−'?`<span style="font-size:12px;">${scriptTxt}</span>`:'<span class="muted">−</span>'}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;">${onUrl?`<button onclick="downloadFile('${e.on_file_path}','${e.combi_name}_音響')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`:e.chuku_on==='有り'?'<span style="color:#dc3545;font-weight:600;">⚠️未</span>':'<span class="muted">−</span>'}</td>
+            <td style="padding:4px 8px;border-bottom:1px solid #f5f5f5;">${scriptUrl?`<button onclick="downloadFile('${e.script_file_path}','${e.combi_name}_台本')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`:scriptTxt!=='−'?`<span style="font-size:12px;">${scriptTxt}</span>`:'<span class="muted">−</span>'}</td>
           </tr>
           <tr style="background:#fafafa;font-size:11px;color:#888;">
             <td style="padding:2px 8px;">出囃子</td>
@@ -530,6 +530,18 @@ function openPdf() {
     <div style="margin-bottom:16px;"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${currentLiveName}</h2><p style="font-size:12px;color:#888;">出力日: ${new Date().toLocaleDateString('ja-JP')}</p></div>
     <table class="pdf-table"><thead><tr><th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th><th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th></tr></thead><tbody>${rows}</tbody></table>`
   document.getElementById('pdf-preview').style.display='flex'
+}
+
+async function downloadFile(path, filename) {
+  try {
+    const { data, error } = await sb.storage.from('kikkake-files').download(path)
+    if (error) throw error
+    const url = URL.createObjectURL(data)
+    const a = document.createElement('a')
+    a.href = url; a.download = filename || path.split('/').pop()
+    document.body.appendChild(a); a.click()
+    document.body.removeChild(a); URL.revokeObjectURL(url)
+  } catch(e) { alert('ダウンロードに失敗しました'); console.error(e) }
 }
 
 function logout() { sessionStorage.removeItem('guest_mode'); sb.auth.signOut().then(()=>location.href='index.html') }
