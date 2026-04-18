@@ -48,7 +48,10 @@
     </div>
     <div id="unit-list"><p class="hint">読み込み中...</p></div>
     <div id="add-unit-form" style="display:none;margin-top:16px;border-top:1px solid #eee;padding-top:16px;">
-      <div class="field"><label>ユニット名</label><input id="new-unit-name" placeholder="例: 誕生石"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field"><label>ユニット名</label><input id="new-unit-name" placeholder="例: 誕生石" oninput="predictUnitFurigana()"></div>
+        <div class="field"><label>ふりがな</label><input id="new-unit-furigana" placeholder="例: たんじょうせき"></div>
+      </div>
       <div style="display:flex;gap:8px;">
         <button onclick="addUnit()" class="btn-primary btn-sm">作成</button>
         <button onclick="hideAddUnit()">キャンセル</button>
@@ -258,18 +261,37 @@ async function fetchUnits(){
   if(!data||!data.length){list.innerHTML='<p class="hint">ユニットがまだありません</p>';return}
   list.innerHTML=data.map(u=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
-      <button onclick="selectUnit('${u.id}','${u.name.replace(/'/g,"\\'")}') " style="background:none;border:none;font-size:14px;font-weight:500;cursor:pointer;color:#0d6efd;padding:0;">${u.name}</button>
+      <button onclick="selectUnit('${u.id}','${u.name.replace(/'/g,"\\'")}') " style="background:none;border:none;font-size:14px;font-weight:500;cursor:pointer;color:#0d6efd;padding:0;">
+        ${u.name}
+        ${u.furigana?`<span style="display:block;font-size:11px;color:#888;font-weight:400;">${u.furigana}</span>`:''}
+      </button>
       <button onclick="deleteUnit('${u.id}')" class="btn-sm btn-danger">削除</button>
     </div>`).join('')
 }
 
-function showAddUnit(){document.getElementById('add-unit-form').style.display='block'}
-function hideAddUnit(){document.getElementById('add-unit-form').style.display='none';document.getElementById('new-unit-name').value=''}
+function showAddUnit(){
+  document.getElementById('add-unit-form').style.display='block'
+  // IMEふりがな自動予測
+  const input=document.getElementById('new-unit-name')
+  const fg=document.getElementById('new-unit-furigana')
+  let manualEdit=false
+  fg.addEventListener('input',()=>{manualEdit=true},{once:false})
+  input.addEventListener('compositionend',e=>{
+    if(manualEdit) return
+    const src=e.data||''
+    const hira=src.replace(/[\u30A1-\u30F6]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60))
+    if(/^[\u3041-\u3096\u30A1-\u30F6ー\s]+$/.test(hira)) fg.value=fg.value+hira
+  })
+  input.addEventListener('input',()=>{if(!input.value){fg.value='';manualEdit=false}})
+}
+function predictUnitFurigana(){}
+function hideAddUnit(){document.getElementById('add-unit-form').style.display='none';document.getElementById('new-unit-name').value='';document.getElementById('new-unit-furigana').value=''}
 
 async function addUnit(){
   const name=document.getElementById('new-unit-name').value.trim()
   if(!name){alert('ユニット名を入力してください');return}
-  await sb.from('units').insert({user_id:user.id,name})
+  const furigana=document.getElementById('new-unit-furigana').value.trim()||null
+  await sb.from('units').insert({user_id:user.id,name,furigana})
   hideAddUnit();fetchUnits()
 }
 
