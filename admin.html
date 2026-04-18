@@ -19,7 +19,7 @@
     </div>
   </div>
 
-  <div id="admin-screen" style="display:none;max-width:680px;margin:0 auto;padding:1.5rem 1rem 4rem;">
+  <div id="admin-screen" style="display:none;max-width:760px;margin:0 auto;padding:1.5rem 1rem 4rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <h1>ライブ管理</h1>
       <button onclick="doLogout()" class="btn-sm">ログアウト</button>
@@ -45,36 +45,6 @@
 
     <p class="hint" id="live-count" style="margin-bottom:12px;"></p>
     <div id="live-list"></div>
-
-    <!-- 詳細パネル -->
-    <div id="detail-section" style="display:none;margin-top:24px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-        <h2 id="detail-live-name" style="margin-bottom:0;font-size:16px;color:#888;"></h2>
-        <button onclick="closeDetail()" class="btn-sm">閉じる</button>
-      </div>
-      <div style="display:flex;border-bottom:1px solid #eee;margin-bottom:16px;">
-        <button class="tab-btn active" id="tab-entries" onclick="switchTab('entries')">提出一覧</button>
-        <button class="tab-btn" id="tab-staff" onclick="switchTab('staff')">参加スタッフ</button>
-      </div>
-      <div id="panel-entries">
-        <div style="overflow-x:auto;">
-          <table class="kikkake-table" id="entries-table" style="display:none;">
-            <thead>
-              <tr>
-                <th>出番</th><th>コンビ名</th><th>形式</th><th>道具</th><th>板付</th>
-                <th>音響</th><th>照明</th><th>明転</th><th>暗転</th>
-                <th>出囃子</th><th>音源</th><th>台本</th><th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="entries-body"></tbody>
-          </table>
-          <p id="entries-empty" style="color:#888;font-size:13px;display:none;">提出がまだありません</p>
-        </div>
-      </div>
-      <div id="panel-staff" style="display:none;">
-        <div id="staff-list"></div>
-      </div>
-    </div>
   </div>
 </main>
 
@@ -84,7 +54,8 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const ADMIN_PASSWORD='LUDO2026'
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)
 
-let currentLiveId=null
+// 展開中のパネル管理
+const openPanels={}
 
 function login(){
   if(document.getElementById('pw-input').value===ADMIN_PASSWORD){
@@ -113,24 +84,152 @@ async function fetchLives(){
   const {data}=await sb.from('lives').select('*').order('created_at',{ascending:false})
   const lives=data||[]
   document.getElementById('live-count').textContent=`作成済みライブ（${lives.length}件）`
-  document.getElementById('live-list').innerHTML=lives.length?lives.map(l=>`
-    <div style="border:1px solid #eee;border-radius:8px;padding:12px 14px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div>
-          <p style="font-weight:500;font-size:15px;">${l.name}</p>
-          <p class="hint" style="font-size:12px;margin-top:4px;">${[l.date?`開催: ${l.date}`:'',l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
+  const list=document.getElementById('live-list')
+  list.innerHTML=''
+  if(!lives.length){list.innerHTML='<p class="hint">まだライブがありません</p>';return}
+  lives.forEach(l=>{
+    const card=document.createElement('div')
+    card.id=`live-card-${l.id}`
+    card.style.cssText='border:1px solid #eee;border-radius:8px;margin-bottom:12px;overflow:hidden;'
+    card.innerHTML=`
+      <div style="padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div>
+            <p style="font-weight:500;font-size:15px;">${l.name}</p>
+            <p class="hint" style="font-size:12px;margin-top:4px;">${[l.date?`開催: ${l.date}`:'',l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}')" class="btn-sm">編集</button>
+            <button onclick="deleteLive('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm btn-danger">削除</button>
+          </div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}')" class="btn-sm">編集</button>
-          <button onclick="deleteLive('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm btn-danger">削除</button>
+        <div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid #f0f0f0;padding-top:10px;">
+          <button onclick="togglePanel('${l.id}','entries')" id="btn-entries-${l.id}" class="btn-sm">提出一覧</button>
+          <button onclick="togglePanel('${l.id}','staff')" id="btn-staff-${l.id}" class="btn-sm">スタッフ</button>
         </div>
       </div>
-      <div style="display:flex;border-top:1px solid #eee;margin-top:10px;padding-top:10px;gap:8px;">
-        <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','entries')" class="btn-sm">提出一覧</button>
-        <button onclick="openDetail('${l.id}','${l.name.replace(/'/g,"\\'")}','staff')" class="btn-sm">スタッフ</button>
-      </div>
+      <div id="panel-${l.id}" style="display:none;border-top:1px solid #eee;background:#fafafa;padding:14px;"></div>
+    `
+    list.appendChild(card)
+  })
+}
+
+async function togglePanel(liveId, tab){
+  const panel=document.getElementById(`panel-${liveId}`)
+  const entriesBtn=document.getElementById(`btn-entries-${liveId}`)
+  const staffBtn=document.getElementById(`btn-staff-${liveId}`)
+  const current=openPanels[liveId]
+
+  // 同じタブを押したら閉じる
+  if(current===tab){
+    panel.style.display='none'
+    openPanels[liveId]=null
+    entriesBtn.classList.remove('active-info')
+    staffBtn.classList.remove('active-info')
+    return
+  }
+
+  openPanels[liveId]=tab
+  panel.style.display='block'
+
+  entriesBtn.classList.toggle('active-info', tab==='entries')
+  staffBtn.classList.toggle('active-info', tab==='staff')
+
+  if(tab==='entries') await renderEntries(liveId, panel)
+  if(tab==='staff') await renderStaff(liveId, panel)
+}
+
+async function renderEntries(liveId, panel){
+  panel.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
+
+  const {data:entries}=await sb.from('entries').select('*').eq('live_id',liveId).order('order',{ascending:true})
+
+  if(!entries||!entries.length){
+    panel.innerHTML='<p class="hint" style="font-size:13px;">提出がまだありません</p>'
+    return
+  }
+
+  // 音響ファイルを取得
+  const combiNames=entries.map(e=>e.combi_name)
+  const {data:onFiles}=await sb.from('on_files').select('*').eq('live_id',liveId).in('combi_name',combiNames)
+  const onFilesMap={}
+  ;(onFiles||[]).forEach(f=>{
+    if(!onFilesMap[f.combi_name]) onFilesMap[f.combi_name]=[]
+    onFilesMap[f.combi_name].push(f)
+  })
+
+  const rows=entries.map(e=>{
+    const hasScript=!!e.script_file_path
+    const onList=onFilesMap[e.combi_name]||[]
+    const onCell=onList.length
+      ? onList.map(f=>`<button onclick="downloadFile('${f.file_path}','${e.combi_name}_${f.file_label||'音響'}')" style="display:block;color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;margin-bottom:2px;">${f.file_label||'DL'}</button>`).join('')
+      : e.chuku_on==='有り'?'<span style="color:#dc3545;font-weight:600;font-size:12px;">⚠️未</span>':'<span class="muted">−</span>'
+    const scriptCell=e.script_method==='当日持参'
+      ? '<span style="font-size:12px;color:#856404;">当日持参</span>'
+      : hasScript
+        ? `<button onclick="downloadFile('${e.script_file_path}','${e.combi_name}_台本')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`
+        : e.script_method==='事前提出'
+          ? '<span style="color:#dc3545;font-size:12px;font-weight:600;">⚠️未</span>'
+          : '<span class="muted">−</span>'
+    return `<tr>
+      <td>${e.order??'<span class="muted">−</span>'}</td>
+      <td style="font-weight:500;white-space:nowrap;">${e.combi_name}${e.is_updated?'<span class="badge badge-updated">更新</span>':''}</td>
+      <td>${e.format?`<span class="badge badge-info">${e.format}</span>`:'<span class="muted">−</span>'}</td>
+      <td>${e.tools||'<span class="muted">−</span>'}</td>
+      <td>${e.itatsuki||'<span class="muted">−</span>'}</td>
+      <td>${e.chuku_on==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_on==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
+      <td>${e.chuku_hari==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_hari==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
+      <td>${e.meiten_kikake||'<span class="muted">−</span>'}</td>
+      <td>${e.anten_kikake||'<span class="muted">−</span>'}</td>
+      <td>
+        <div style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px;">出囃子</div>
+      </td>
+      <td>
+        <div>${onCell}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px;">音源</div>
+      </td>
+      <td>
+        <div>${scriptCell}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px;">台本</div>
+      </td>
+    </tr>`
+  }).join('')
+
+  panel.innerHTML=`
+    <div style="overflow-x:auto;">
+      <table class="kikkake-table" style="background:#fff;">
+        <thead>
+          <tr>
+            <th>出番</th><th>コンビ名</th><th>形式</th><th>道具</th><th>板付</th>
+            <th>音響</th><th>照明</th><th>明転</th><th>暗転</th>
+            <th>出囃子</th><th>音源</th><th>台本</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
-  `).join(''):'<p class="hint">まだライブがありません</p>'
+  `
+}
+
+async function renderStaff(liveId, panel){
+  panel.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
+  const {data:sl}=await sb.from('staff_lives').select('user_id, profiles(display_name, email)').eq('live_id',liveId)
+  if(!sl||!sl.length){panel.innerHTML='<p class="hint" style="font-size:13px;">参加スタッフがまだいません</p>';return}
+  panel.innerHTML=`
+    <p class="hint" style="margin-bottom:12px;font-size:13px;">参加スタッフ ${sl.length}名</p>
+    ${sl.map(s=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+        <div style="width:30px;height:30px;border-radius:50%;background:#cfe2ff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#084298;flex-shrink:0;">
+          ${(s.profiles?.display_name||s.profiles?.email||'?')[0].toUpperCase()}
+        </div>
+        <div>
+          <p style="font-weight:500;font-size:13px;">${s.profiles?.display_name||'名前未設定'}</p>
+          <p class="hint" style="font-size:12px;">${s.profiles?.email||''}</p>
+        </div>
+      </div>
+    `).join('')}
+  `
 }
 
 async function saveLive(){
@@ -167,93 +266,7 @@ function cancelEdit(){
 async function deleteLive(id,name){
   if(!confirm(`「${name}」を削除しますか？\n提出データも全て消えます`))return
   await sb.from('lives').delete().eq('id',id)
-  if(currentLiveId===id) closeDetail()
   fetchLives()
-}
-
-function openDetail(liveId,liveName,tab){
-  currentLiveId=liveId
-  document.getElementById('detail-live-name').textContent=liveName
-  document.getElementById('detail-section').style.display='block'
-  document.getElementById('detail-section').scrollIntoView({behavior:'smooth'})
-  switchTab(tab)
-}
-
-function switchTab(tab){
-  document.getElementById('tab-entries').classList.toggle('active',tab==='entries')
-  document.getElementById('tab-staff').classList.toggle('active',tab==='staff')
-  document.getElementById('panel-entries').style.display=tab==='entries'?'block':'none'
-  document.getElementById('panel-staff').style.display=tab==='staff'?'block':'none'
-  if(tab==='entries') loadEntries()
-  if(tab==='staff') loadStaff()
-}
-
-async function loadEntries(){
-  const {data}=await sb.from('entries').select('*').eq('live_id',currentLiveId).order('order',{ascending:true})
-  const entries=data||[]
-  if(!entries.length){
-    document.getElementById('entries-table').style.display='none'
-    document.getElementById('entries-empty').style.display='block'
-    return
-  }
-  document.getElementById('entries-empty').style.display='none'
-  document.getElementById('entries-table').style.display='table'
-  document.getElementById('entries-body').innerHTML=entries.map(e=>{
-    const hasOn=!!e.on_file_path, hasScript=!!e.script_file_path
-    const scriptTxt=e.script_method?e.script_method:(hasScript?'事前提出':'−')
-    return `<tr>
-      <td>${e.order??'<span class="muted">−</span>'}</td>
-      <td style="font-weight:500;white-space:nowrap;">${e.combi_name}${e.is_updated?'<span class="badge badge-updated">更新</span>':''}</td>
-      <td>${e.format?`<span class="badge badge-info">${e.format}</span>`:'<span class="muted">−</span>'}</td>
-      <td>${e.tools||'<span class="muted">−</span>'}</td>
-      <td>${e.itatsuki||'<span class="muted">−</span>'}</td>
-      <td>${e.chuku_on==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_on==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
-      <td>${e.chuku_hari==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_hari==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
-      <td>${e.meiten_kikake||'<span class="muted">−</span>'}</td>
-      <td>${e.anten_kikake||'<span class="muted">−</span>'}</td>
-      <td>
-        <div style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</div>
-        <div style="font-size:10px;color:#aaa;margin-top:2px;">出囃子</div>
-      </td>
-      <td>
-        <div>${hasOn?`<button onclick="downloadFile('${e.on_file_path}','${e.combi_name}_音響')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`:'<span class="muted">−</span>'}</div>
-        <div style="font-size:10px;color:#aaa;margin-top:2px;">音源</div>
-      </td>
-      <td>
-        <div>${
-          e.script_method==='当日持参'
-            ? '<span style="font-size:12px;color:#856404;">当日持参</span>'
-            : hasScript
-              ? `<button onclick="downloadFile('${e.script_file_path}','${e.combi_name}_台本')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`
-              : e.script_method==='事前提出'
-                ? '<span style="color:#dc3545;font-size:12px;font-weight:600;">⚠️未</span>'
-                : '<span class="muted">−</span>'
-        }</div>
-        <div style="font-size:10px;color:#aaa;margin-top:2px;">台本</div>
-      </td>
-      <td><button onclick="deleteEntry('${e.id}')" class="btn-sm btn-danger">削除</button></td>
-    </tr>`
-  }).join('')
-}
-
-async function loadStaff(){
-  const {data:sl}=await sb.from('staff_lives').select('user_id, profiles(display_name, email)').eq('live_id',currentLiveId)
-  const list=document.getElementById('staff-list')
-  if(!sl||!sl.length){list.innerHTML='<p class="hint">参加スタッフがまだいません</p>';return}
-  list.innerHTML=`
-    <p class="hint" style="margin-bottom:12px;">参加スタッフ ${sl.length}名</p>
-    ${sl.map(s=>`
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0;">
-        <div style="width:32px;height:32px;border-radius:50%;background:#cfe2ff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#084298;flex-shrink:0;">
-          ${(s.profiles?.display_name||s.profiles?.email||'?')[0].toUpperCase()}
-        </div>
-        <div>
-          <p style="font-weight:500;font-size:14px;">${s.profiles?.display_name||'名前未設定'}</p>
-          <p class="hint">${s.profiles?.email||''}</p>
-        </div>
-      </div>
-    `).join('')}
-  `
 }
 
 async function downloadFile(path,filename){
@@ -262,21 +275,10 @@ async function downloadFile(path,filename){
     if(error) throw error
     const url=URL.createObjectURL(data)
     const a=document.createElement('a')
-    a.href=url; a.download=filename||path.split('/').pop()
-    document.body.appendChild(a); a.click()
-    document.body.removeChild(a); URL.revokeObjectURL(url)
+    a.href=url;a.download=filename||path.split('/').pop()
+    document.body.appendChild(a);a.click()
+    document.body.removeChild(a);URL.revokeObjectURL(url)
   }catch(e){alert('ダウンロードに失敗しました: '+e.message);console.error(e)}
-}
-
-async function deleteEntry(id){
-  if(!confirm('この提出データを削除しますか?'))return
-  await sb.from('entries').delete().eq('id',id)
-  loadEntries()
-}
-
-function closeDetail(){
-  document.getElementById('detail-section').style.display='none'
-  currentLiveId=null
 }
 
 if(sessionStorage.getItem('admin_authed')==='1') showAdmin()
