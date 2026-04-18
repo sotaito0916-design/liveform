@@ -218,16 +218,14 @@ async function renderEntries(liveId, panel){
 async function renderStaff(liveId, panel){
   panel.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
 
-  // まずstaff_livesを取得
   const {data:sl, error:slErr}=await sb.from('staff_lives').select('user_id').eq('live_id',liveId)
-  if(slErr||!sl||!sl.length){
-    panel.innerHTML='<p class="hint" style="font-size:13px;">参加スタッフがまだいません</p>'
-    return
-  }
+  if(slErr){panel.innerHTML=`<p style="color:red;font-size:13px;">エラー: ${slErr.message}</p>`;return}
+  if(!sl||!sl.length){panel.innerHTML='<p class="hint" style="font-size:13px;">参加スタッフがまだいません</p>';return}
 
-  // 次にuser_idでprofilesを取得
   const userIds=sl.map(s=>s.user_id)
-  const {data:profiles}=await sb.from('profiles').select('id,display_name,email').in('id',userIds)
+  const {data:profiles, error:pErr}=await sb.from('profiles').select('id,display_name,email').in('id',userIds)
+  if(pErr){panel.innerHTML=`<p style="color:red;font-size:13px;">プロフィール取得エラー: ${pErr.message}</p>`;return}
+
   const profileMap={}
   ;(profiles||[]).forEach(p=>profileMap[p.id]=p)
 
