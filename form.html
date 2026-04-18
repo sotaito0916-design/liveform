@@ -462,12 +462,13 @@ async function handleOnSubmit() {
   btn.textContent='アップロード中...'; btn.disabled=true
 
   try {
-    console.log('アップロード開始:', file.name, file.size, file.type)
-    const path=`on/${Date.now()}_${file.name}`
+    const ext = file.name.split('.').pop()
+    const safeName = `on/${Date.now()}.${ext}`
+    console.log('アップロード:', safeName, file.size, file.type)
 
     const { data, error } = await sb.storage
       .from('kikkake-files')
-      .upload(path, file, { cacheControl:'3600', upsert:true })
+      .upload(safeName, file, { cacheControl:'3600', upsert:true })
 
     if (error) {
       console.error('アップロードエラー:', error)
@@ -476,17 +477,14 @@ async function handleOnSubmit() {
       return
     }
 
-    console.log('アップロード成功:', data)
-
     const { error: dbError } = await sb.from('entries').upsert({
       live_id:liveId, combi_name:combi,
-      on_file_path:path,
+      on_file_path:safeName,
       is_updated:true,
       updated_at:new Date().toISOString()
     }, { onConflict:'live_id,combi_name' })
 
     if (dbError) {
-      console.error('DB保存エラー:', dbError)
       alert('DB保存失敗: ' + dbError.message)
     } else {
       document.getElementById('on-done').style.display='block'
@@ -495,29 +493,50 @@ async function handleOnSubmit() {
       alert('✅ 音響ファイルのアップロードが完了しました！')
     }
   } catch(e) {
-    console.error('例外:', e)
     alert('エラー: ' + e.message)
   }
-
   btn.textContent='音響を提出する'; btn.disabled=false
 }
 
 async function handleScriptSubmit() {
-  const liveId=document.getElementById('script-live-select').value, combi=document.getElementById('script-combi-name').value.trim()
+  const liveId=document.getElementById('script-live-select').value
+  const combi=document.getElementById('script-combi-name').value.trim()
   if (!liveId||!combi||!scriptMethod) { alert('ライブ、コンビ名、提出方法を選択してください'); return }
+
+  const btn=document.querySelector('#script-card .btn-primary')
+  btn.textContent='提出中...'; btn.disabled=true
+
   try {
     let scriptPath=null
     if (scriptMethod==='事前提出') {
       const file=document.getElementById('script-file').files[0]
-      if (!file) { alert('PDFファイルを選択してください'); return }
-      const p=`script/${Date.now()}_${file.name}`; await sb.storage.from('kikkake-files').upload(p, file); scriptPath=p
+      if (!file) { alert('PDFファイルを選択してください'); btn.textContent='台本情報を提出する'; btn.disabled=false; return }
+      const ext = file.name.split('.').pop()
+      const safeName = `script/${Date.now()}.${ext}`
+      const { error } = await sb.storage
+        .from('kikkake-files')
+        .upload(safeName, file, { cacheControl:'3600', upsert:true })
+      if (error) { alert('アップロード失敗: ' + error.message); btn.textContent='台本情報を提出する'; btn.disabled=false; return }
+      scriptPath=safeName
     }
-    await sb.from('entries').upsert({
-      live_id:liveId, combi_name:combi, script_file_path:scriptPath,
-      script_method:scriptMethod, is_updated:true, updated_at:new Date().toISOString()
-    },{onConflict:'live_id,combi_name'})
-    document.getElementById('script-done').style.display='block'
-  } catch(e) { alert('エラーが発生しました'); console.error(e) }
+    const { error: dbError } = await sb.from('entries').upsert({
+      live_id:liveId, combi_name:combi,
+      script_file_path:scriptPath,
+      script_method:scriptMethod,
+      is_updated:true,
+      updated_at:new Date().toISOString()
+    }, { onConflict:'live_id,combi_name' })
+
+    if (dbError) {
+      alert('DB保存失敗: ' + dbError.message)
+    } else {
+      document.getElementById('script-done').style.display='block'
+      alert('✅ 台本情報の提出が完了しました！')
+    }
+  } catch(e) {
+    alert('エラー: ' + e.message)
+  }
+  btn.textContent='台本情報を提出する'; btn.disabled=false
 }
 
 function resetForm() { location.reload() }
