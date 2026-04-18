@@ -356,10 +356,11 @@ async function loadEntries(liveId,liveName,btn){
     tr.innerHTML=`
       <td>${e.order??'<span class="muted">−</span>'}</td>
       <td style="font-weight:500;white-space:nowrap;">
-        ${e.combi_name}${e.is_updated?'<span class="badge badge-updated">更新</span>':''}
+        ${e.combi_name}
         ${e.combi_furigana?`<div style="font-size:11px;color:#888;font-weight:400;">${e.combi_furigana}</div>`:''}
+        ${e.is_updated&&!e.update_confirmed?`<span class="badge badge-updated" style="cursor:pointer;" onclick="confirmUpdate('${e.id}',this)" title="クリックで確認済みにする">更新 ✕</span>`:''}
       </td>
-      <td>${e.format?`<span class="badge badge-info">${e.format}</span>`:'<span class="muted">−</span>'}</td>
+      <td>${e.format==='漫才'?'<span class="badge" style="background:#d1e7dd;color:#0f5132;">漫才</span>':e.format==='ピン'?'<span class="badge" style="background:#e2d9f3;color:#432874;">ピン</span>':e.format==='コント'?'<span class="badge" style="background:#cfe2ff;color:#084298;">コント</span>':'<span class="muted">−</span>'}</td>
       <td>${e.tools||'<span class="muted">−</span>'}</td>
       <td>${e.itatsuki||'<span class="muted">−</span>'}</td>
       <td>${e.chuku_on==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_on==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
@@ -511,6 +512,11 @@ async function savePdf(){
   a.href=url; a.download=`${title}_きっかけ表.html`
   document.body.appendChild(a); a.click()
   document.body.removeChild(a); URL.revokeObjectURL(url)
+}
+
+async function confirmUpdate(entryId, el){
+  await sb.from('entries').update({update_confirmed:true}).eq('id',entryId)
+  el.remove()
 }
 
 function logout(){sessionStorage.removeItem('guest_mode');sb.auth.signOut().then(()=>location.href='index.html')}
