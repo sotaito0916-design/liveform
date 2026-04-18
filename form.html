@@ -452,17 +452,54 @@ async function handleSubmit() {
 }
 
 async function handleOnSubmit() {
-  const liveId=document.getElementById('on-live-select').value, combi=document.getElementById('on-combi-name').value.trim()
+  const liveId=document.getElementById('on-live-select').value
+  const combi=document.getElementById('on-combi-name').value.trim()
   if (!liveId||!combi) { alert('ライブとコンビ名を入力してください'); return }
   const file=document.getElementById('on-file').files[0]
   if (!file) { alert('音響ファイルを選択してください'); return }
+
+  const btn=document.querySelector('#on-card .btn-primary')
+  btn.textContent='アップロード中...'; btn.disabled=true
+
   try {
-    const p=`on/${Date.now()}_${file.name}`; await sb.storage.from('kikkake-files').upload(p, file)
-    await sb.from('entries').upsert({ live_id:liveId, combi_name:combi, on_file_path:p, is_updated:true, updated_at:new Date().toISOString() },{onConflict:'live_id,combi_name'})
-    document.getElementById('on-done').style.display='block'
-    document.getElementById('on-warn').style.display='none'
-    document.getElementById('on-file').value=''
-  } catch(e) { alert('エラーが発生しました'); console.error(e) }
+    console.log('アップロード開始:', file.name, file.size, file.type)
+    const path=`on/${Date.now()}_${file.name}`
+
+    const { data, error } = await sb.storage
+      .from('kikkake-files')
+      .upload(path, file, { cacheControl:'3600', upsert:true })
+
+    if (error) {
+      console.error('アップロードエラー:', error)
+      alert('アップロード失敗: ' + error.message)
+      btn.textContent='音響を提出する'; btn.disabled=false
+      return
+    }
+
+    console.log('アップロード成功:', data)
+
+    const { error: dbError } = await sb.from('entries').upsert({
+      live_id:liveId, combi_name:combi,
+      on_file_path:path,
+      is_updated:true,
+      updated_at:new Date().toISOString()
+    }, { onConflict:'live_id,combi_name' })
+
+    if (dbError) {
+      console.error('DB保存エラー:', dbError)
+      alert('DB保存失敗: ' + dbError.message)
+    } else {
+      document.getElementById('on-done').style.display='block'
+      document.getElementById('on-warn').style.display='none'
+      document.getElementById('on-file').value=''
+      alert('✅ 音響ファイルのアップロードが完了しました！')
+    }
+  } catch(e) {
+    console.error('例外:', e)
+    alert('エラー: ' + e.message)
+  }
+
+  btn.textContent='音響を提出する'; btn.disabled=false
 }
 
 async function handleScriptSubmit() {
