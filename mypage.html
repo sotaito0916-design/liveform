@@ -27,6 +27,19 @@
 <main>
   <h1 style="margin-bottom:20px;">マイページ</h1>
 
+  <!-- ユーザー名編集 -->
+  <div class="card" style="margin-bottom:16px;">
+    <h2 style="margin-bottom:16px;">プロフィール</h2>
+    <div class="field">
+      <label>表示名</label>
+      <div style="display:flex;gap:8px;">
+        <input id="display-name-input" placeholder="表示名を入力" style="flex:1;">
+        <button onclick="saveDisplayName()" class="btn-primary btn-sm">保存</button>
+      </div>
+    </div>
+    <p id="name-saved" style="color:#198754;font-size:13px;display:none;">✓ 保存しました</p>
+  </div>
+
   <!-- ユニット -->
   <div class="card" style="margin-bottom:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -227,8 +240,18 @@ async function init() {
   user = session.user
   const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single()
   document.getElementById('nav-user').textContent = profile?.display_name || user.email
+  document.getElementById('display-name-input').value = profile?.display_name || ''
   if (profile?.role === 'staff') { location.href='staff.html'; return }
   fetchUnits()
+}
+
+async function saveDisplayName(){
+  const name=document.getElementById('display-name-input').value.trim()
+  if(!name){alert('表示名を入力してください');return}
+  await sb.from('profiles').update({display_name:name}).eq('id',user.id)
+  document.getElementById('nav-user').textContent=name
+  document.getElementById('name-saved').style.display='block'
+  setTimeout(()=>document.getElementById('name-saved').style.display='none',3000)
 }
 
 async function fetchUnits() {
