@@ -590,6 +590,7 @@ async function handleSubmit(){
       debayashi_full:debFull||null,
       script_method:kikakeScriptMethod||null,
       is_updated:true,
+      update_confirmed:false,
       updated_at:new Date().toISOString()
     },{onConflict:'live_id,combi_name'})
     document.getElementById('form-screen').style.display='none'
