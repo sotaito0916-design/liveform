@@ -173,7 +173,10 @@ async function renderEntries(liveId, panel){
           : '<span class="muted">−</span>'
     return `<tr>
       <td>${e.order??'<span class="muted">−</span>'}</td>
-      <td style="font-weight:500;white-space:nowrap;">${e.combi_name}${e.is_updated?'<span class="badge badge-updated">更新</span>':''}</td>
+      <td style="font-weight:500;white-space:nowrap;">
+        ${e.combi_name}${e.is_updated?'<span class="badge badge-updated">更新</span>':''}
+        ${e.combi_furigana?`<div style="font-size:11px;color:#888;font-weight:400;">${e.combi_furigana}</div>`:''}
+      </td>
       <td>${e.format?`<span class="badge badge-info">${e.format}</span>`:'<span class="muted">−</span>'}</td>
       <td>${e.tools||'<span class="muted">−</span>'}</td>
       <td>${e.itatsuki||'<span class="muted">−</span>'}</td>
