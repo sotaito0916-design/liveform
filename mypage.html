@@ -48,6 +48,7 @@
     </div>
     <div id="unit-list"><p class="hint">読み込み中...</p></div>
     <div id="add-unit-form" style="display:none;margin-top:16px;border-top:1px solid #eee;padding-top:16px;">
+      <p style="font-size:13px;font-weight:500;margin-bottom:12px;">新しいユニットを追加</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div class="field"><label>ユニット名</label><input id="new-unit-name" placeholder="例: 誕生石" oninput="predictUnitFurigana()"></div>
         <div class="field"><label>ふりがな</label><input id="new-unit-furigana" placeholder="例: たんじょうせき"></div>
@@ -55,6 +56,20 @@
       <div style="display:flex;gap:8px;">
         <button onclick="addUnit()" class="btn-primary btn-sm">作成</button>
         <button onclick="hideAddUnit()">キャンセル</button>
+      </div>
+    </div>
+
+    <!-- ユニット編集フォーム -->
+    <div id="edit-unit-form" style="display:none;margin-top:16px;border-top:1px solid #eee;padding-top:16px;">
+      <p style="font-size:13px;font-weight:500;margin-bottom:12px;">ユニットを編集</p>
+      <input type="hidden" id="edit-unit-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field"><label>ユニット名</label><input id="edit-unit-name" placeholder="例: 誕生石"></div>
+        <div class="field"><label>ふりがな</label><input id="edit-unit-furigana" placeholder="例: たんじょうせき"></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveEditUnit()" class="btn-primary btn-sm">保存</button>
+        <button onclick="hideEditUnit()">キャンセル</button>
       </div>
     </div>
   </div>
@@ -261,11 +276,14 @@ async function fetchUnits(){
   if(!data||!data.length){list.innerHTML='<p class="hint">ユニットがまだありません</p>';return}
   list.innerHTML=data.map(u=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;">
-      <button onclick="selectUnit('${u.id}','${u.name.replace(/'/g,"\\'")}') " style="background:none;border:none;font-size:14px;font-weight:500;cursor:pointer;color:#0d6efd;padding:0;">
+      <button onclick="selectUnit('${u.id}','${u.name.replace(/'/g,"\\'")}') " style="background:none;border:none;font-size:14px;font-weight:500;cursor:pointer;color:#0d6efd;padding:0;text-align:left;">
         ${u.name}
         ${u.furigana?`<span style="display:block;font-size:11px;color:#888;font-weight:400;">${u.furigana}</span>`:''}
       </button>
-      <button onclick="deleteUnit('${u.id}')" class="btn-sm btn-danger">削除</button>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="showEditUnit('${u.id}','${u.name.replace(/'/g,"\\'")}','${(u.furigana||'').replace(/'/g,"\\'")}') " class="btn-sm">編集</button>
+        <button onclick="deleteUnit('${u.id}')" class="btn-sm btn-danger">削除</button>
+      </div>
     </div>`).join('')
 }
 
@@ -284,7 +302,28 @@ function showAddUnit(){
   })
   input.addEventListener('input',()=>{if(!input.value){fg.value='';manualEdit=false}})
 }
-function predictUnitFurigana(){}
+function showEditUnit(id, name, furigana){
+  document.getElementById('add-unit-form').style.display='none'
+  document.getElementById('edit-unit-id').value=id
+  document.getElementById('edit-unit-name').value=name
+  document.getElementById('edit-unit-furigana').value=furigana
+  document.getElementById('edit-unit-form').style.display='block'
+  document.getElementById('edit-unit-form').scrollIntoView({behavior:'smooth'})
+}
+function hideEditUnit(){
+  document.getElementById('edit-unit-form').style.display='none'
+  document.getElementById('edit-unit-id').value=''
+  document.getElementById('edit-unit-name').value=''
+  document.getElementById('edit-unit-furigana').value=''
+}
+async function saveEditUnit(){
+  const id=document.getElementById('edit-unit-id').value
+  const name=document.getElementById('edit-unit-name').value.trim()
+  if(!name){alert('ユニット名を入力してください');return}
+  const furigana=document.getElementById('edit-unit-furigana').value.trim()||null
+  await sb.from('units').update({name,furigana}).eq('id',id)
+  hideEditUnit();fetchUnits()
+}
 function hideAddUnit(){document.getElementById('add-unit-form').style.display='none';document.getElementById('new-unit-name').value='';document.getElementById('new-unit-furigana').value=''}
 
 async function addUnit(){
