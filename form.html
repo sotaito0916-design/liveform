@@ -462,6 +462,7 @@ async function handleSubmit() {
     const debFull=deb==='ナシ'?'ナシ':[deb,debArtist].filter(Boolean).join('/')
     await sb.from('entries').upsert({
       live_id:liveId, combi_name:combiName,
+      combi_furigana:document.getElementById('combi-furigana').value.trim()||null,
       order:document.getElementById('order').value?parseInt(document.getElementById('order').value):null,
       format:selectedFormat, tools:selectedFormat!=='漫才'?getToolsText():null,
       itatsuki:selectedFormat!=='漫才'?getItatsuki():null,
