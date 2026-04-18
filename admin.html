@@ -211,21 +211,26 @@ async function loadEntries(){
       <td>${e.chuku_hari==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_hari==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
       <td>${e.meiten_kikake||'<span class="muted">−</span>'}</td>
       <td>${e.anten_kikake||'<span class="muted">−</span>'}</td>
-      <td style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</td>
-      <td style="padding:0;vertical-align:top;">${hasOn?`<div style="font-size:12px;">${entries.filter?'':''}`+
-        (() => {
-          // on_filesは別途取得できないのでentries側のon_file_pathのみ表示
-          return hasOn?`<button onclick="downloadFile('${e.on_file_path}','${e.combi_name}_音響')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`:'<span class="muted">−</span>'
-        })()+'</div>':'<span class="muted">−</span>'}</td>
-      <td>${
-        e.script_method==='当日持参'
-          ? '<span style="font-size:12px;color:#856404;">当日持参</span>'
-          : hasScript
-            ? `<button onclick="downloadFile('${e.script_file_path}','${e.combi_name}_台本')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`
-            : e.script_method==='事前提出'
-              ? '<span style="color:#dc3545;font-size:12px;font-weight:600;">⚠️未</span>'
-              : '<span class="muted">−</span>'
-      }</td>
+      <td>
+        <div style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px;">出囃子</div>
+      </td>
+      <td>
+        <div>${hasOn?`<button onclick="downloadFile('${e.on_file_path}','${e.combi_name}_音響')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`:'<span class="muted">−</span>'}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px;">音源</div>
+      </td>
+      <td>
+        <div>${
+          e.script_method==='当日持参'
+            ? '<span style="font-size:12px;color:#856404;">当日持参</span>'
+            : hasScript
+              ? `<button onclick="downloadFile('${e.script_file_path}','${e.combi_name}_台本')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`
+              : e.script_method==='事前提出'
+                ? '<span style="color:#dc3545;font-size:12px;font-weight:600;">⚠️未</span>'
+                : '<span class="muted">−</span>'
+        }</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px;">台本</div>
+      </td>
       <td><button onclick="deleteEntry('${e.id}')" class="btn-sm btn-danger">削除</button></td>
     </tr>`
   }).join('')
