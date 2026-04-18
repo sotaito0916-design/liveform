@@ -189,19 +189,38 @@
         <h3 style="margin-bottom:0;">音響ファイル提出</h3>
         <span id="on-warn" class="warn-badge" style="display:none;">⚠️ 未提出</span>
       </div>
-      <p class="hint" style="margin-bottom:12px;">コンビ名を入力してmp3ファイルをアップロードしてください</p>
+      <p class="hint" style="margin-bottom:12px;">複数ファイルをアップロードできます。ファイルごとにラベルをつけてください。</p>
       <div class="field">
         <label>コンビ名 <span class="req">*</span></label>
-        <input id="on-combi-name" placeholder="例: 誕生石">
+        <input id="on-combi-name" placeholder="例: 誕生石" oninput="checkOnWarn()">
       </div>
       <div class="field">
         <label>ライブを選択 <span class="req">*</span></label>
-        <select id="on-live-select"><option value="">選択してください</option></select>
+        <select id="on-live-select" onchange="checkOnWarn(); loadExistingOnFiles()"><option value="">選択してください</option></select>
       </div>
-      <div class="field">
-        <label>音響ファイル（mp3）</label>
-        <input type="file" id="on-file" accept=".mp3,audio/*">
+
+      <!-- 既存ファイル一覧 -->
+      <div id="existing-on-files" style="display:none;margin-bottom:16px;">
+        <p style="font-size:13px;font-weight:500;margin-bottom:8px;">提出済みファイル</p>
+        <div id="existing-on-list"></div>
       </div>
+
+      <!-- ファイル追加フォーム -->
+      <div id="on-file-inputs">
+        <div class="on-file-row" style="border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:8px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div class="field" style="margin-bottom:0;">
+              <label style="font-size:12px;">ラベル（例: オープニング）</label>
+              <input type="text" class="on-label" placeholder="任意">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label style="font-size:12px;">音響ファイル（mp3/m4a等）</label>
+              <input type="file" class="on-file-input" accept=".mp3,.m4a,.wav,.aac,audio/*">
+            </div>
+          </div>
+        </div>
+      </div>
+      <button onclick="addOnFileRow()" style="width:100%;margin-bottom:12px;font-size:13px;">＋ ファイルを追加</button>
       <button onclick="handleOnSubmit()" class="btn-primary" style="width:100%;">音響を提出する</button>
       <p id="on-done" style="color:#198754;font-size:13px;margin-top:10px;display:none;">✓ 提出しました</p>
     </div>
@@ -451,51 +470,90 @@ async function handleSubmit() {
   btn.textContent='きっかけを提出する'; btn.disabled=false
 }
 
-async function handleOnSubmit() {
+function addOnFileRow(){
+  const row=document.createElement('div')
+  row.className='on-file-row'
+  row.style.cssText='border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:8px;position:relative;'
+  row.innerHTML=`
+    <button onclick="this.parentElement.remove()" style="position:absolute;top:8px;right:8px;font-size:12px;color:#dc3545;border-color:#dc3545;padding:2px 8px;">✕</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="field" style="margin-bottom:0;">
+        <label style="font-size:12px;">ラベル（例: オープニング）</label>
+        <input type="text" class="on-label" placeholder="任意">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label style="font-size:12px;">音響ファイル（mp3/m4a等）</label>
+        <input type="file" class="on-file-input" accept=".mp3,.m4a,.wav,.aac,audio/*">
+      </div>
+    </div>
+  `
+  document.getElementById('on-file-inputs').appendChild(row)
+}
+
+async function loadExistingOnFiles(){
   const liveId=document.getElementById('on-live-select').value
   const combi=document.getElementById('on-combi-name').value.trim()
-  if (!liveId||!combi) { alert('ライブとコンビ名を入力してください'); return }
-  const file=document.getElementById('on-file').files[0]
-  if (!file) { alert('音響ファイルを選択してください'); return }
+  const box=document.getElementById('existing-on-files')
+  const list=document.getElementById('existing-on-list')
+  if(!liveId||!combi){box.style.display='none';return}
+  const {data}=await sb.from('on_files').select('*').eq('live_id',liveId).eq('combi_name',combi).order('created_at')
+  if(!data||!data.length){box.style.display='none';return}
+  box.style.display='block'
+  list.innerHTML=data.map(f=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f8f8f8;border-radius:6px;margin-bottom:6px;font-size:13px;">
+      <span>${f.file_label||'ファイル'} <span style="color:#888;font-size:11px;">${f.file_path.split('/').pop()}</span></span>
+      <button onclick="deleteOnFile('${f.id}','${f.file_path}')" style="font-size:11px;color:#dc3545;border-color:#dc3545;padding:2px 8px;">削除</button>
+    </div>
+  `).join('')
+}
+
+async function deleteOnFile(id, path){
+  if(!confirm('このファイルを削除しますか？'))return
+  await sb.storage.from('kikkake-files').remove([path])
+  await sb.from('on_files').delete().eq('id',id)
+  loadExistingOnFiles()
+}
+
+async function handleOnSubmit(){
+  const liveId=document.getElementById('on-live-select').value
+  const combi=document.getElementById('on-combi-name').value.trim()
+  if(!liveId||!combi){alert('ライブとコンビ名を入力してください');return}
+
+  const rows=document.querySelectorAll('.on-file-row')
+  const hasFile=[...rows].some(r=>r.querySelector('.on-file-input')?.files[0])
+  if(!hasFile){alert('少なくとも1つのファイルを選択してください');return}
 
   const btn=document.querySelector('#on-card .btn-primary')
-  btn.textContent='アップロード中...'; btn.disabled=true
+  btn.textContent='アップロード中...';btn.disabled=true
 
-  try {
-    const ext = file.name.split('.').pop()
-    const safeName = `on/${Date.now()}.${ext}`
-    console.log('アップロード:', safeName, file.size, file.type)
-
-    const { data, error } = await sb.storage
-      .from('kikkake-files')
-      .upload(safeName, file, { cacheControl:'3600', upsert:true })
-
-    if (error) {
-      console.error('アップロードエラー:', error)
-      alert('アップロード失敗: ' + error.message)
-      btn.textContent='音響を提出する'; btn.disabled=false
-      return
-    }
-
-    const { error: dbError } = await sb.from('entries').upsert({
-      live_id:liveId, combi_name:combi,
-      on_file_path:safeName,
-      is_updated:true,
-      updated_at:new Date().toISOString()
-    }, { onConflict:'live_id,combi_name' })
-
-    if (dbError) {
-      alert('DB保存失敗: ' + dbError.message)
-    } else {
-      document.getElementById('on-done').style.display='block'
-      document.getElementById('on-warn').style.display='none'
-      document.getElementById('on-file').value=''
-      alert('✅ 音響ファイルのアップロードが完了しました！')
-    }
-  } catch(e) {
-    alert('エラー: ' + e.message)
+  let successCount=0
+  for(const row of rows){
+    const file=row.querySelector('.on-file-input')?.files[0]
+    if(!file) continue
+    const label=row.querySelector('.on-label')?.value||''
+    const ext=file.name.split('.').pop()
+    const safeName=`on/${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`
+    try{
+      const {error}=await sb.storage.from('kikkake-files').upload(safeName,file,{cacheControl:'3600',upsert:true})
+      if(error){console.error(error);continue}
+      await sb.from('on_files').insert({live_id:liveId,combi_name:combi,file_path:safeName,file_label:label||null})
+      // entriesにも最初の1件を記録（後方互換）
+      if(successCount===0){
+        await sb.from('entries').upsert({live_id:liveId,combi_name:combi,on_file_path:safeName,is_updated:true,updated_at:new Date().toISOString()},{onConflict:'live_id,combi_name'})
+      }
+      successCount++
+    }catch(e){console.error(e)}
   }
-  btn.textContent='音響を提出する'; btn.disabled=false
+
+  btn.textContent='音響を提出する';btn.disabled=false
+  if(successCount>0){
+    document.getElementById('on-done').style.display='block'
+    document.getElementById('on-done').textContent=`✓ ${successCount}件アップロードしました`
+    document.getElementById('on-warn').style.display='none'
+    loadExistingOnFiles()
+  } else {
+    alert('アップロードに失敗しました')
+  }
 }
 
 async function handleScriptSubmit() {
