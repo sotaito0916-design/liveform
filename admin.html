@@ -217,21 +217,33 @@ async function renderEntries(liveId, panel){
 
 async function renderStaff(liveId, panel){
   panel.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
-  const {data:sl}=await sb.from('staff_lives').select('user_id, profiles(display_name, email)').eq('live_id',liveId)
-  if(!sl||!sl.length){panel.innerHTML='<p class="hint" style="font-size:13px;">参加スタッフがまだいません</p>';return}
+
+  // まずstaff_livesを取得
+  const {data:sl, error:slErr}=await sb.from('staff_lives').select('user_id').eq('live_id',liveId)
+  if(slErr||!sl||!sl.length){
+    panel.innerHTML='<p class="hint" style="font-size:13px;">参加スタッフがまだいません</p>'
+    return
+  }
+
+  // 次にuser_idでprofilesを取得
+  const userIds=sl.map(s=>s.user_id)
+  const {data:profiles}=await sb.from('profiles').select('id,display_name,email').in('id',userIds)
+  const profileMap={}
+  ;(profiles||[]).forEach(p=>profileMap[p.id]=p)
+
   panel.innerHTML=`
     <p class="hint" style="margin-bottom:12px;font-size:13px;">参加スタッフ ${sl.length}名</p>
-    ${sl.map(s=>`
-      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
-        <div style="width:30px;height:30px;border-radius:50%;background:#cfe2ff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#084298;flex-shrink:0;">
-          ${(s.profiles?.display_name||s.profiles?.email||'?')[0].toUpperCase()}
-        </div>
+    ${sl.map(s=>{
+      const p=profileMap[s.user_id]||{}
+      const initial=(p.display_name||p.email||'?')[0].toUpperCase()
+      return `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+        <div style="width:30px;height:30px;border-radius:50%;background:#cfe2ff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#084298;flex-shrink:0;">${initial}</div>
         <div>
-          <p style="font-weight:500;font-size:13px;">${s.profiles?.display_name||'名前未設定'}</p>
-          <p class="hint" style="font-size:12px;">${s.profiles?.email||''}</p>
+          <p style="font-weight:500;font-size:13px;">${p.display_name||'名前未設定'}</p>
+          <p class="hint" style="font-size:12px;">${p.email||''}</p>
         </div>
-      </div>
-    `).join('')}
+      </div>`
+    }).join('')}
   `
 }
 
