@@ -19,15 +19,14 @@
 .pdf-table td{padding:7px 6px;border:1px solid #ddd;vertical-align:top;word-break:break-all;overflow:hidden;}
 .pdf-table td.nowrap{white-space:nowrap;word-break:normal;}
 .pdf-table th:nth-child(1){width:4%;}
-.pdf-table th:nth-child(2){width:11%;}
-.pdf-table th:nth-child(3){width:6%;}
-.pdf-table th:nth-child(4){width:9%;}
-.pdf-table th:nth-child(5){width:5%;}
-.pdf-table th:nth-child(6){width:5%;}
-.pdf-table th:nth-child(7){width:5%;}
-.pdf-table th:nth-child(8){width:13%;}
-.pdf-table th:nth-child(9){width:11%;}
-.pdf-table th:nth-child(10){width:15%;}
+.pdf-table th:nth-child(2){width:13%;}
+.pdf-table th:nth-child(3){width:7%;}
+.pdf-table th:nth-child(4){width:11%;}
+.pdf-table th:nth-child(5){width:6%;}
+.pdf-table th:nth-child(6){width:6%;}
+.pdf-table th:nth-child(7){width:6%;}
+.pdf-table th:nth-child(8){width:23%;}
+.pdf-table th:nth-child(9){width:24%;}
 @media print{nav,button{display:none!important}}
 </style>
 </head>
@@ -499,12 +498,11 @@ function openPdf(){
     <td class="nowrap">${e.chuku_hari==='有り'?'<span style="background:#fff3cd;color:#856404;padding:1px 4px;border-radius:99px;font-size:9px;">有り</span>':e.chuku_hari==='無し'?'<span style="background:#d1e7dd;color:#0f5132;padding:1px 4px;border-radius:99px;font-size:9px;">無し</span>':'−'}</td>
     <td>${e.meiten_kikake||'−'}</td>
     <td>${e.anten_kikake||'−'}</td>
-    <td style="font-size:10px;">${e.debayashi_full||'−'}</td>
   </tr>`).join('')
   document.getElementById('pdf-body').innerHTML=`
     <div style="margin-bottom:16px;"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">${currentLiveName}</h2><p style="font-size:12px;color:#888;">出力日: ${new Date().toLocaleDateString('ja-JP')}</p></div>
     <table class="pdf-table">
-      <thead><tr><th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th><th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th><th>⑧出囃子</th></tr></thead>
+      <thead><tr><th>出番</th><th>コンビ名</th><th>形式</th><th>③道具</th><th>④板付</th><th>⑤音響</th><th>⑤照明</th><th>⑥明転</th><th>⑦暗転</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`
   document.getElementById('pdf-preview').style.display='flex'
@@ -513,7 +511,7 @@ function openPdf(){
 async function savePdf(){
   const title=currentLiveName
   const bodyHtml=document.getElementById('pdf-body').innerHTML
-  const html=`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>${title} きっかけ表</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}th{background:#f5f5f5;padding:7px 6px;text-align:left;border:1px solid #ddd;font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;}td{padding:7px 6px;border:1px solid #ddd;vertical-align:top;word-break:break-all;overflow:hidden;}td.nowrap{white-space:nowrap;word-break:normal;}th:nth-child(1){width:4%;}th:nth-child(2){width:11%;}th:nth-child(3){width:6%;}th:nth-child(4){width:9%;}th:nth-child(5){width:5%;}th:nth-child(6){width:5%;}th:nth-child(7){width:5%;}th:nth-child(8){width:13%;}th:nth-child(9){width:11%;}th:nth-child(10){width:15%;}</style></head><body>${bodyHtml}</body></html>`
+  const html=`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>${title} きっかけ表</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}th{background:#f5f5f5;padding:7px 6px;text-align:left;border:1px solid #ddd;font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;}td{padding:7px 6px;border:1px solid #ddd;vertical-align:top;word-break:break-all;overflow:hidden;}td.nowrap{white-space:nowrap;word-break:normal;}th:nth-child(1){width:4%;}th:nth-child(2){width:11%;}th:nth-child(3){width:6%;}th:nth-child(4){width:9%;}th:nth-child(5){width:5%;}th:nth-child(6){width:5%;}th:nth-child(7){width:5%;}th:nth-child(1){width:4%;}th:nth-child(2){width:13%;}th:nth-child(3){width:7%;}th:nth-child(4){width:11%;}th:nth-child(5){width:6%;}th:nth-child(6){width:6%;}th:nth-child(7){width:6%;}th:nth-child(8){width:23%;}th:nth-child(9){width:24%;}</style></head><body>${bodyHtml}</body></html>`
   const blob=new Blob([html],{type:'text/html;charset=utf-8'})
   const url=URL.createObjectURL(blob)
   const a=document.createElement('a');a.href=url;a.download=`${title}_きっかけ表.html`
