@@ -377,18 +377,18 @@ async function loadEntries(liveId,liveName,btn){
     const tr=document.createElement('tr')
     tr.innerHTML=`
       <td style="white-space:nowrap;">${e.order??'<span class="muted">−</span>'}</td>
-      <td style="font-weight:500;">
+      <td style="font-weight:500;white-space:nowrap;">
         <div>${e.combi_name}</div>
         ${e.combi_furigana?`<div style="font-size:10px;color:#888;font-weight:400;">${e.combi_furigana}</div>`:''}
         ${e.is_updated&&!e.update_confirmed?`<div style="margin-top:2px;"><span class="badge badge-updated" style="cursor:pointer;font-size:10px;" onclick="confirmUpdate('${e.id}',this)">更新</span></div>`:''}
       </td>
       <td style="white-space:nowrap;">${e.format==='漫才'?'<span class="badge" style="background:#d1e7dd;color:#0f5132;font-size:10px;">漫才</span>':e.format==='ピン'?'<span class="badge" style="background:#e2d9f3;color:#432874;font-size:10px;">ピン</span>':e.format==='コント'?'<span class="badge" style="background:#cfe2ff;color:#084298;font-size:10px;">コント</span>':'<span class="muted">−</span>'}</td>
-      <td>${e.tools||'<span class="muted">−</span>'}</td>
+      <td style="white-space:nowrap;">${e.tools||'<span class="muted">−</span>'}</td>
       <td style="white-space:nowrap;">${e.itatsuki||'<span class="muted">−</span>'}</td>
       <td style="white-space:nowrap;">${e.chuku_on==='有り'?'<span class="badge badge-warn" style="font-size:10px;">有り</span>':e.chuku_on==='無し'?'<span class="badge badge-ok" style="font-size:10px;">無し</span>':'<span class="muted">−</span>'}</td>
       <td style="white-space:nowrap;">${e.chuku_hari==='有り'?'<span class="badge badge-warn" style="font-size:10px;">有り</span>':e.chuku_hari==='無し'?'<span class="badge badge-ok" style="font-size:10px;">無し</span>':'<span class="muted">−</span>'}</td>
-      <td>${e.meiten_kikake||'<span class="muted">−</span>'}</td>
-      <td>${e.anten_kikake||'<span class="muted">−</span>'}</td>
+      <td style="white-space:normal;word-break:break-all;min-width:80px;">${e.meiten_kikake||'<span class="muted">−</span>'}</td>
+      <td style="white-space:normal;word-break:break-all;min-width:80px;">${e.anten_kikake||'<span class="muted">−</span>'}</td>
       <td>
         <div>
           <div style="font-size:11px;">${e.debayashi_full||'<span class="muted">−</span>'}</div>
