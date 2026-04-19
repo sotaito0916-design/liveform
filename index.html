@@ -106,7 +106,7 @@ async function handleRegister() {
   if (password.length < 6) { errEl.textContent = 'パスワードは6文字以上にしてください'; errEl.style.display = 'block'; return }
   const { error } = await sb.auth.signUp({ email, password, options: { data: { role: selectedRole, display_name: name } } })
   if (error) { errEl.textContent = '登録に失敗しました: ' + error.message; errEl.style.display = 'block'; return }
-  sucEl.textContent = '登録完了！メールを確認してログインしてください。'; sucEl.style.display = 'block'
+  sucEl.textContent = '登録完了！ログインしてください。'; sucEl.style.display = 'block'
 }
 
 init()
