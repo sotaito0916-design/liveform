@@ -259,7 +259,7 @@ async function init(){
       nav.innerHTML=`<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><a href="mypage.html">マイページ</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
     }
   }
-  const {data:lives}=await sb.from('lives').select('*').order('created_at',{ascending:false})
+  const {data:lives}=await sb.from('lives').select('*').eq('hidden',false).order('created_at',{ascending:false})
   let displayLives=lives||[]
   if(userRole==='staff'&&session){
     const {data:sl}=await sb.from('staff_lives').select('live_id').eq('user_id',session.user.id)
