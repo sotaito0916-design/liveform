@@ -71,7 +71,8 @@ button:disabled { opacity: 0.6; cursor: wait; }
 /* テーブル */
 .kikkake-table { border-collapse: collapse; font-size: 13px; width: 100%; }
 .kikkake-table th { padding: 8px 10px; background: #f5f5f5; border-bottom: 2px solid #ddd; text-align: left; white-space: nowrap; font-weight: 500; color: #555; }
-.kikkake-table td { padding: 8px 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
+.kikkake-table td { padding: 8px 10px; border-bottom: 1px solid #eee; white-space: normal; word-break: break-all; max-width: 120px; }
+.kikkake-table td.nowrap { white-space: nowrap; word-break: normal; max-width: none; }
 
 /* カレンダー */
 .calendar { width: 100%; border-collapse: collapse; }
