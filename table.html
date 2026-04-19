@@ -387,8 +387,8 @@ async function loadEntries(liveId,liveName,btn){
       <td style="white-space:nowrap;">${e.itatsuki||'<span class="muted">−</span>'}</td>
       <td style="white-space:nowrap;">${e.chuku_on==='有り'?'<span class="badge badge-warn" style="font-size:10px;">有り</span>':e.chuku_on==='無し'?'<span class="badge badge-ok" style="font-size:10px;">無し</span>':'<span class="muted">−</span>'}</td>
       <td style="white-space:nowrap;">${e.chuku_hari==='有り'?'<span class="badge badge-warn" style="font-size:10px;">有り</span>':e.chuku_hari==='無し'?'<span class="badge badge-ok" style="font-size:10px;">無し</span>':'<span class="muted">−</span>'}</td>
-      <td style="white-space:normal;word-break:break-all;min-width:80px;">${e.meiten_kikake||'<span class="muted">−</span>'}</td>
-      <td style="white-space:normal;word-break:break-all;min-width:80px;">${e.anten_kikake||'<span class="muted">−</span>'}</td>
+      <td style="white-space:nowrap;">${e.meiten_kikake||'<span class="muted">−</span>'}</td>
+      <td style="white-space:nowrap;">${e.anten_kikake||'<span class="muted">−</span>'}</td>
       <td>
         <div>
           <div style="font-size:11px;">${e.debayashi_full||'<span class="muted">−</span>'}</div>
