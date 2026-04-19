@@ -296,7 +296,7 @@ async function init(){
     const uSel=document.getElementById('neta-unit-sel')
     ;(units||[]).forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.name;uSel.appendChild(o)})
   }
-  const {data:lives}=await sb.from('lives').select('*').order('created_at',{ascending:false})
+  const {data:lives}=await sb.from('lives').select('*').eq('hidden',false).order('created_at',{ascending:false})
   ;['live-select','on-live-select','script-live-select'].forEach(id=>{
     const sel=document.getElementById(id)
     ;(lives||[]).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.name;sel.appendChild(o)})
