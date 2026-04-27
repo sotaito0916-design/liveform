@@ -36,7 +36,16 @@
         <div class="field" style="margin-bottom:0;"><label>開催日</label><input type="date" id="live-date"></div>
         <div class="field" style="margin-bottom:0;"><label>提出締切</label><input type="datetime-local" id="live-deadline"></div>
       </div>
-      <p class="hint" style="margin-bottom:16px;">※ ダウンロード用パスワードはsuperadminページで設定してください</p>
+
+      <!-- パスワード欄：新規作成時のみ表示 -->
+      <div id="dl-password-field" class="field">
+        <label>ダウンロード用パスワード <span class="req">*</span></label>
+        <input type="text" id="live-dl-password" placeholder="例: live2026spring" autocomplete="off">
+        <div class="banner-warning" style="margin-top:8px;">
+          ⚠️ このパスワードは作成後に確認できません。必ずメモしておいてください。
+        </div>
+      </div>
+
       <div style="display:flex;gap:8px;">
         <button onclick="saveLive()" class="btn-primary" id="save-btn" style="flex:1;">ライブを作成</button>
         <button onclick="cancelEdit()" id="cancel-btn" style="display:none;">キャンセル</button>
@@ -80,7 +89,8 @@ function showAdmin(){
 }
 
 async function fetchLives(){
-  const {data}=await sb.from('lives').select('*').order('created_at',{ascending:false})
+  // dl_passwordは取得しない（セキュリティのため）
+  const {data}=await sb.from('lives').select('id,name,date,deadline,hidden').order('created_at',{ascending:false})
   const lives=data||[]
   document.getElementById('live-count').textContent=`作成済みライブ（${lives.length}件）`
   const list=document.getElementById('live-list')
@@ -121,18 +131,23 @@ async function toggleHide(id, currentHidden){
 async function saveLive(){
   const name=document.getElementById('live-name').value.trim()
   if(!name){alert('ライブ名を入力してください');return}
+  const editId=document.getElementById('edit-live-id').value
   const payload={
     name,
     date:document.getElementById('live-date').value||null,
     deadline:document.getElementById('live-deadline').value||null,
   }
-  const editId=document.getElementById('edit-live-id').value
-  if(editId){
-    const {error}=await sb.from('lives').update(payload).eq('id',editId)
-    if(error){alert('更新失敗: '+error.message);console.error(error);return}
-  } else {
+  if(!editId){
+    // 新規作成：パスワード必須
+    const dlPassword=document.getElementById('live-dl-password').value.trim()
+    if(!dlPassword){alert('ダウンロード用パスワードを入力してください');return}
+    payload.dl_password=dlPassword
     const {error}=await sb.from('lives').insert(payload)
     if(error){alert('作成失敗: '+error.message);console.error(error);return}
+  } else {
+    // 編集：パスワードは更新しない
+    const {error}=await sb.from('lives').update(payload).eq('id',editId)
+    if(error){alert('更新失敗: '+error.message);console.error(error);return}
   }
   cancelEdit();fetchLives()
 }
@@ -145,6 +160,8 @@ function startEdit(id,name,date,deadline){
   document.getElementById('form-title').textContent='ライブを編集'
   document.getElementById('save-btn').textContent='変更を保存'
   document.getElementById('cancel-btn').style.display='inline-block'
+  // 編集時はパスワード欄を非表示
+  document.getElementById('dl-password-field').style.display='none'
   window.scrollTo({top:0,behavior:'smooth'})
 }
 
@@ -153,9 +170,12 @@ function cancelEdit(){
   document.getElementById('live-name').value=''
   document.getElementById('live-date').value=''
   document.getElementById('live-deadline').value=''
+  document.getElementById('live-dl-password').value=''
   document.getElementById('form-title').textContent='新しいライブを追加'
   document.getElementById('save-btn').textContent='ライブを作成'
   document.getElementById('cancel-btn').style.display='none'
+  // 新規作成モードに戻したらパスワード欄を再表示
+  document.getElementById('dl-password-field').style.display='block'
 }
 
 async function togglePanel(liveId,tab){
