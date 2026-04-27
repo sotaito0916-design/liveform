@@ -126,28 +126,55 @@ async function fetchLives(){
   const {data}=await sb.from('lives').select('*').order('created_at',{ascending:false})
   const lives=data||[]
   document.getElementById('live-count').textContent=`ライブ一覧（${lives.length}件）`
-  document.getElementById('live-list').innerHTML=lives.length?lives.map(l=>`
-    <div style="border:1px solid ${l.hidden?'#dee2e6':'#eee'};border-radius:8px;padding:12px 14px;margin-bottom:8px;background:${l.hidden?'#f8f9fa':'#fff'};">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+  const list=document.getElementById('live-list')
+  list.innerHTML=''
+  if(!lives.length){list.innerHTML='<p class="hint">ライブがありません</p>';return}
+  lives.forEach(l=>{
+    const div=document.createElement('div')
+    div.style.cssText=`border:1px solid ${l.hidden?'#dee2e6':'#eee'};border-radius:8px;padding:14px;margin-bottom:10px;background:${l.hidden?'#f8f9fa':'#fff'};`
+    div.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
         <div>
           <p style="font-weight:500;font-size:14px;${l.hidden?'color:#888;':''}">${l.name}${l.hidden?'<span style="font-size:11px;color:#888;margin-left:8px;">（非表示）</span>':''}</p>
           <p class="hint" style="font-size:12px;">${[l.date?`開催: ${l.date}`:'',l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
-          <!-- DLパスワード（superadminのみ表示） -->
-          <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;color:#555;font-weight:500;">DLパスワード:</span>
-            ${l.dl_password
-              ? `<span id="pw-val-${l.id}" style="font-size:12px;font-family:monospace;background:#f0f0f0;padding:2px 8px;border-radius:4px;letter-spacing:0.05em;">${l.dl_password}</span>`
-              : `<span style="font-size:12px;color:#dc3545;">未設定</span>`
-            }
-          </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button onclick="toggleHide('${l.id}',${!!l.hidden})" class="btn-sm">${l.hidden?'表示に戻す':'非表示にする'}</button>
           <button onclick="deleteLive('${l.id}','${l.name.replace(/'/g,"\\'")}') " class="btn-sm btn-danger">削除</button>
         </div>
       </div>
-    </div>
-  `).join(''):'<p class="hint">ライブがありません</p>'
+      <!-- DLパスワード設定エリア -->
+      <div style="border-top:1px solid #f0f0f0;padding-top:12px;">
+        <p style="font-size:12px;font-weight:500;color:#555;margin-bottom:8px;">ダウンロード用パスワード</p>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:200px;">
+            <input
+              type="text"
+              id="pw-input-${l.id}"
+              value="${l.dl_password||''}"
+              placeholder="パスワードを入力"
+              style="flex:1;font-family:monospace;font-size:13px;"
+            >
+          </div>
+          <button onclick="saveDlPassword('${l.id}')" class="btn-primary btn-sm">保存</button>
+        </div>
+        <p id="pw-saved-${l.id}" style="color:#198754;font-size:12px;margin-top:6px;display:none;">✓ 保存しました</p>
+        ${!l.dl_password?'<p style="color:#dc3545;font-size:12px;margin-top:4px;">⚠️ パスワード未設定</p>':''}
+      </div>
+    `
+    list.appendChild(div)
+  })
+}
+
+async function saveDlPassword(liveId){
+  const input=document.getElementById(`pw-input-${liveId}`)
+  const pw=input.value.trim()
+  if(!pw){alert('パスワードを入力してください');return}
+  const {error}=await sb.from('lives').update({dl_password:pw}).eq('id',liveId)
+  if(error){alert('保存失敗: '+error.message);console.error(error);return}
+  const saved=document.getElementById(`pw-saved-${liveId}`)
+  saved.style.display='block'
+  setTimeout(()=>saved.style.display='none',3000)
 }
 
 async function toggleHide(id, currentHidden){
