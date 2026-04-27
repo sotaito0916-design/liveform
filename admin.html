@@ -36,11 +36,7 @@
         <div class="field" style="margin-bottom:0;"><label>開催日</label><input type="date" id="live-date"></div>
         <div class="field" style="margin-bottom:0;"><label>提出締切</label><input type="datetime-local" id="live-deadline"></div>
       </div>
-      <div class="field">
-        <label>ダウンロード用パスワード <span class="req">*</span></label>
-        <input type="text" id="live-dl-password" placeholder="例: live2026spring">
-        <p class="hint" style="margin-top:6px;color:#856404;">⚠️ このパスワードは音源・台本のダウンロード時に使用します。必ずメモしておいてください。後から確認する場合はsuperadminページで確認できます。</p>
-      </div>
+      <p class="hint" style="margin-bottom:16px;">※ ダウンロード用パスワードはsuperadminページで設定してください</p>
       <div style="display:flex;gap:8px;">
         <button onclick="saveLive()" class="btn-primary" id="save-btn" style="flex:1;">ライブを作成</button>
         <button onclick="cancelEdit()" id="cancel-btn" style="display:none;">キャンセル</button>
@@ -102,7 +98,7 @@ async function fetchLives(){
             <p class="hint" style="font-size:12px;margin-top:4px;">${[l.date?`開催: ${l.date}`:'',l.deadline?`締切: ${l.deadline.replace('T',' ').slice(0,16)}`:''].filter(Boolean).join(' ・ ')}</p>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}','${(l.dl_password||'').replace(/'/g,"\\'")}') " class="btn-sm">編集</button>
+            <button onclick="startEdit('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.date||''}','${l.deadline||''}')" class="btn-sm">編集</button>
             <button onclick="toggleHide('${l.id}',${!!l.hidden})" class="btn-sm ${l.hidden?'':'btn-danger'}">${l.hidden?'表示に戻す':'非表示にする'}</button>
           </div>
         </div>
@@ -124,16 +120,13 @@ async function toggleHide(id, currentHidden){
 
 async function saveLive(){
   const name=document.getElementById('live-name').value.trim()
-  const dlPassword=document.getElementById('live-dl-password').value.trim()
   if(!name){alert('ライブ名を入力してください');return}
-  const editId=document.getElementById('edit-live-id').value
-  if(!editId&&!dlPassword){alert('ダウンロード用パスワードを入力してください');return}
   const payload={
     name,
     date:document.getElementById('live-date').value||null,
     deadline:document.getElementById('live-deadline').value||null,
   }
-  if(dlPassword) payload.dl_password=dlPassword
+  const editId=document.getElementById('edit-live-id').value
   if(editId){
     const {error}=await sb.from('lives').update(payload).eq('id',editId)
     if(error){alert('更新失敗: '+error.message);console.error(error);return}
@@ -144,12 +137,11 @@ async function saveLive(){
   cancelEdit();fetchLives()
 }
 
-function startEdit(id,name,date,deadline,dlPassword){
+function startEdit(id,name,date,deadline){
   document.getElementById('edit-live-id').value=id
   document.getElementById('live-name').value=name
   document.getElementById('live-date').value=date
   document.getElementById('live-deadline').value=deadline
-  document.getElementById('live-dl-password').value=dlPassword
   document.getElementById('form-title').textContent='ライブを編集'
   document.getElementById('save-btn').textContent='変更を保存'
   document.getElementById('cancel-btn').style.display='inline-block'
@@ -161,7 +153,6 @@ function cancelEdit(){
   document.getElementById('live-name').value=''
   document.getElementById('live-date').value=''
   document.getElementById('live-deadline').value=''
-  document.getElementById('live-dl-password').value=''
   document.getElementById('form-title').textContent='新しいライブを追加'
   document.getElementById('save-btn').textContent='ライブを作成'
   document.getElementById('cancel-btn').style.display='none'
@@ -218,18 +209,9 @@ async function renderEntries(liveId,panel){
       <td>${e.chuku_hari==='有り'?'<span class="badge badge-warn">有り</span>':e.chuku_hari==='無し'?'<span class="badge badge-ok">無し</span>':'<span class="muted">−</span>'}</td>
       <td>${e.meiten_kikake||'<span class="muted">−</span>'}</td>
       <td>${e.anten_kikake||'<span class="muted">−</span>'}</td>
-      <td>
-        <div style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</div>
-        <div style="font-size:10px;color:#aaa;margin-top:2px;">出囃子</div>
-      </td>
-      <td>
-        <div>${onCell}</div>
-        <div style="font-size:10px;color:#aaa;margin-top:2px;">音源</div>
-      </td>
-      <td>
-        <div>${scriptCell}</div>
-        <div style="font-size:10px;color:#aaa;margin-top:2px;">台本</div>
-      </td>
+      <td><div style="white-space:nowrap;">${e.debayashi_full||'<span class="muted">−</span>'}</div></td>
+      <td><div>${onCell}</div></td>
+      <td><div>${scriptCell}</div></td>
     </tr>`
   }).join('')
   panel.innerHTML=`
