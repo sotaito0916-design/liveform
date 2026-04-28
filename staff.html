@@ -69,8 +69,8 @@ async function init() {
 }
 
 async function fetchData() {
-  const { data: lives } = await sb.from('lives').select('*').order('date')
-  allLives = lives || []
+  const { data: lives } = await sb.from('lives').select('*').eq('hidden', false).order('date')
+allLives = lives || []
   const { data: sl } = await sb.from('staff_lives').select('live_id').eq('user_id', user.id)
   const myIds = (sl || []).map(s => s.live_id)
   myLives = allLives.filter(l => myIds.includes(l.id))
