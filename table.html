@@ -57,20 +57,23 @@
 <main>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
     <h1>きっかけ表</h1>
-    <button onclick="openPdf()" id="print-btn" style="display:none;">PDF出力</button>
+    <div style="display:flex;gap:8px;">
+      <button onclick="openKoban()" id="koban-btn" style="display:none;" class="btn-sm">香盤入力</button>
+      <button onclick="openPdf()" id="print-btn" style="display:none;">PDF出力</button>
+    </div>
   </div>
 
   <!-- 検索欄 -->
-<div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:16px;align-items:center;">
-  <input type="text" id="search-name" placeholder="ライブ名で検索（例: 〇〇ライブ）"
-    oninput="filterLives()"
-    style="padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;width:100%;">
-  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-    <input type="date" id="search-date" onchange="filterLives()"
-      style="padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
-    <button onclick="clearDateSearch()" style="padding:9px 10px;font-size:12px;color:#888;border-radius:8px;" title="日付をクリア">✕</button>
+  <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:16px;align-items:center;">
+    <input type="text" id="search-name" placeholder="ライブ名で検索"
+      oninput="filterLives()"
+      style="padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;width:100%;">
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <input type="date" id="search-date" onchange="filterLives()"
+        style="padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px;">
+      <button onclick="clearDateSearch()" style="padding:9px 10px;font-size:12px;color:#888;border-radius:8px;" title="日付をクリア">✕</button>
+    </div>
   </div>
-</div>
 
   <p id="empty-msg" style="color:#888;display:none;">ライブが見つかりません</p>
   <div id="live-list"></div>
@@ -118,6 +121,38 @@
   </div>
 </div>
 
+<!-- 香盤入力モーダル -->
+<div id="koban-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width:480px;width:90%;">
+    <h3 style="margin-bottom:8px;">香盤入力</h3>
+    <p class="hint" style="margin-bottom:16px;">コンビ名を1行1組で貼り付けてください。OPMC・中MC・EDMCは自動で無視されます。</p>
+
+    <!-- Step1: パスワード -->
+    <div id="koban-step1">
+      <p style="font-size:13px;font-weight:500;margin-bottom:8px;">ライブのダウンロード用パスワードを入力してください</p>
+      <div class="field"><input type="password" id="koban-pw-input" placeholder="パスワード" onkeydown="if(event.key==='Enter') verifyKobanPw()"></div>
+      <p id="koban-pw-error" style="color:#dc3545;font-size:13px;margin-bottom:12px;display:none;">パスワードが違います</p>
+      <div style="display:flex;gap:8px;">
+        <button onclick="verifyKobanPw()" class="btn-primary" style="flex:1;">次へ</button>
+        <button onclick="closeKoban()">キャンセル</button>
+      </div>
+    </div>
+
+    <!-- Step2: 香盤テキスト入力 -->
+    <div id="koban-step2" style="display:none;">
+      <textarea id="koban-text" placeholder="OPMC&#10;コンビA&#10;コンビB&#10;中MC&#10;コンビC&#10;EDMC"
+        style="width:100%;height:220px;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;margin-bottom:12px;"></textarea>
+      <div id="koban-preview" style="display:none;margin-bottom:12px;font-size:12px;background:#f8f8f8;border-radius:6px;padding:10px;max-height:120px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="previewKoban()" class="btn-sm" style="flex:1;">プレビュー</button>
+        <button onclick="applyKoban()" class="btn-primary" id="koban-apply-btn" style="flex:1;display:none;">この順番で保存</button>
+        <button onclick="closeKoban()">キャンセル</button>
+      </div>
+      <p id="koban-result" style="font-size:13px;margin-top:10px;display:none;"></p>
+    </div>
+  </div>
+</div>
+
 <!-- 編集フォームモーダル -->
 <div id="edit-form-modal" class="modal-overlay" style="align-items:flex-start;overflow-y:auto;padding:20px 0;">
   <div style="background:#fff;border-radius:10px;width:90%;max-width:560px;margin:auto;">
@@ -128,8 +163,8 @@
     <div style="padding:20px;">
       <input type="hidden" id="ef-entry-id">
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
-        <div class="field"><label>① コンビ名</label><input id="ef-combi" placeholder="例: 誕生石"></div>
-        <div class="field"><label>出番順</label><input id="ef-order" type="number" placeholder="例: 3"></div>
+        <div class="field"><label>① コンビ名</label><input id="ef-combi" placeholder=""></div>
+        <div class="field"><label>出番順</label><input id="ef-order" type="number" placeholder=""></div>
       </div>
       <div class="field">
         <label>② 形式</label>
@@ -255,6 +290,9 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const EDIT_PASSWORD='LUDO2026'
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)
 
+// 無視するキーワード
+const IGNORE_LINES=['OPMC','中MC','EDMC']
+
 let userRole='guest'
 let allLives=[]
 let openLiveId=null
@@ -265,6 +303,7 @@ let currentLiveDlPassword=''
 let editMode=false
 let efState={format:'',desk:null,chair:null,mic:null,other:null,on:'',hari:'',meiten:'',anten:'',itatsuki:null,nasiMode:false,scriptMethod:''}
 let pendingDlPath=null,pendingDlName=null
+let kobanOrder=[]  // プレビュー確定後の並び順
 
 async function init(){
   const isGuest=sessionStorage.getItem('guest_mode')==='1'
@@ -304,32 +343,23 @@ async function fetchLives(session){
   renderLives(allLives)
 }
 
-function formatDate(str){
-  if(!str) return null
-  return str.replace(/-/g,'/')
-}
-function formatDeadline(str){
-  if(!str) return null
-  return str.replace('T',' ').slice(0,16)
-}
+function formatDate(str){if(!str) return null;return str.replace(/-/g,'/')}
+function formatDeadline(str){if(!str) return null;return str.replace('T',' ').slice(0,16)}
 
 function renderLives(lives){
   const container=document.getElementById('live-list')
   container.innerHTML=''
   document.getElementById('empty-msg').style.display=lives.length?'none':'block'
   if(!lives.length) return
-
   lives.forEach(l=>{
     const card=document.createElement('div')
     card.className='live-card'
     card.id=`card-${l.id}`
-
     const dateStr=formatDate(l.date)
     const deadlineStr=formatDeadline(l.deadline)
     const metaParts=[]
     if(dateStr) metaParts.push(`<span>📅 開催: ${dateStr}</span>`)
     if(deadlineStr) metaParts.push(`<span>⏰ 締切: ${deadlineStr}</span>`)
-
     card.innerHTML=`
       <div class="live-card-header" id="header-${l.id}" onclick="toggleLive('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.dl_password||''}')">
         <div style="flex:1;min-width:0;">
@@ -368,22 +398,14 @@ async function toggleLive(liveId,liveName,dlPassword){
   const body=document.getElementById(`body-${liveId}`)
   const header=document.getElementById(`header-${liveId}`)
   const chevron=document.getElementById(`chevron-${liveId}`)
-
-  // 同じライブを再クリックしたら閉じる
   if(openLiveId===liveId){
-    body.classList.remove('open')
-    header.classList.remove('active')
-    chevron.textContent='›'
-    chevron.style.transform=''
-    openLiveId=null
-    currentLiveId=null
-    currentLiveName=''
-    currentLiveDlPassword=''
+    body.classList.remove('open');header.classList.remove('active')
+    chevron.textContent='›';chevron.style.transform=''
+    openLiveId=null;currentLiveId=null;currentLiveName='';currentLiveDlPassword=''
     document.getElementById('print-btn').style.display='none'
+    document.getElementById('koban-btn').style.display='none'
     return
   }
-
-  // 前に開いていたものを閉じる
   if(openLiveId){
     const prevBody=document.getElementById(`body-${openLiveId}`)
     const prevHeader=document.getElementById(`header-${openLiveId}`)
@@ -392,44 +414,32 @@ async function toggleLive(liveId,liveName,dlPassword){
     if(prevHeader) prevHeader.classList.remove('active')
     if(prevChevron){prevChevron.textContent='›';prevChevron.style.transform=''}
   }
-
-  openLiveId=liveId
-  currentLiveId=liveId
-  currentLiveName=liveName
-  currentLiveDlPassword=dlPassword
-  body.classList.add('open')
-  header.classList.add('active')
-  chevron.textContent='›'
-  chevron.style.transform='rotate(90deg)'
+  openLiveId=liveId;currentLiveId=liveId;currentLiveName=liveName;currentLiveDlPassword=dlPassword
+  body.classList.add('open');header.classList.add('active')
+  chevron.textContent='›';chevron.style.transform='rotate(90deg)'
   document.getElementById('print-btn').style.display='inline-block'
-
+  document.getElementById('koban-btn').style.display='inline-block'
   await loadEntries(liveId,liveName,dlPassword)
 }
 
 async function loadEntries(liveId,liveName,dlPassword){
   const container=document.getElementById(`entries-${liveId}`)
   container.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
-
   const {data}=await sb.from('entries').select('*').eq('live_id',liveId).order('order',{ascending:true})
   currentEntries=data||[]
-
   const combiNames=currentEntries.map(e=>e.combi_name)
   let onFilesMap={}
   if(combiNames.length){
     const {data:onFiles}=await sb.from('on_files').select('*').eq('live_id',liveId).in('combi_name',combiNames)
     ;(onFiles||[]).forEach(f=>{if(!onFilesMap[f.combi_name])onFilesMap[f.combi_name]=[];onFilesMap[f.combi_name].push(f)})
   }
-
   if(!currentEntries.length){
     container.innerHTML='<p class="hint" style="font-size:13px;">まだ提出がありません</p>'
     return
   }
-
-  // スタッフ編集ボタン
   const editBtnHtml=userRole==='staff'
     ?`<button id="toggle-edit-btn" onclick="requestEditMode()" class="btn-sm" style="margin-left:8px;">編集モード</button>`
     :''
-
   const rows=currentEntries.map(e=>{
     const onFiles=onFilesMap[e.combi_name]||[]
     const hasScript=!!e.script_file_path
@@ -463,9 +473,7 @@ async function loadEntries(liveId,liveName,dlPassword){
       ${userRole==='staff'?`<td id="edit-col-${e.id}">${editMode?`<button class="btn-sm" onclick="openEditForm('${e.id}')">編集</button>`:'−'}</td>`:''}
     </tr>`
   }).join('')
-
   const editColHeader=userRole==='staff'?'<th></th>':''
-
   container.innerHTML=`
     <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">
       ${editBtnHtml}
@@ -483,6 +491,138 @@ async function loadEntries(liveId,liveName,dlPassword){
   `
 }
 
+// ---- 香盤入力 ----
+function openKoban(){
+  document.getElementById('koban-pw-input').value=''
+  document.getElementById('koban-pw-error').style.display='none'
+  document.getElementById('koban-text').value=''
+  document.getElementById('koban-preview').style.display='none'
+  document.getElementById('koban-preview').innerHTML=''
+  document.getElementById('koban-apply-btn').style.display='none'
+  document.getElementById('koban-result').style.display='none'
+  document.getElementById('koban-step1').style.display='block'
+  document.getElementById('koban-step2').style.display='none'
+  kobanOrder=[]
+  document.getElementById('koban-modal').style.display='flex'
+}
+
+function closeKoban(){
+  document.getElementById('koban-modal').style.display='none'
+}
+
+function verifyKobanPw(){
+  const pw=document.getElementById('koban-pw-input').value
+  // パスワード未設定ライブはそのまま通過
+  if(currentLiveDlPassword&&pw!==currentLiveDlPassword){
+    document.getElementById('koban-pw-error').style.display='block';return
+  }
+  document.getElementById('koban-step1').style.display='none'
+  document.getElementById('koban-step2').style.display='block'
+}
+
+// 香盤テキストをパースしてコンビ名リストに変換
+function parseKoban(text){
+  const lines=text.split('\n')
+  const result=[]
+  for(const rawLine of lines){
+    // 前後の空白を除去
+    let line=rawLine.trim()
+    if(!line) continue
+    // 無視キーワード
+    if(IGNORE_LINES.some(ig=>line===ig||line.startsWith(ig))) continue
+    // 先頭の番号を除去（例: "1." "1．" "1 " "①" など）
+    line=line.replace(/^[\d１-９０]+[.\．\s。)）]\s*/,'')
+    line=line.replace(/^[①-⑳]\s*/,'')
+    line=line.trim()
+    if(line) result.push(line)
+  }
+  return result
+}
+
+function previewKoban(){
+  const text=document.getElementById('koban-text').value
+  const parsed=parseKoban(text)
+  const previewEl=document.getElementById('koban-preview')
+  const applyBtn=document.getElementById('koban-apply-btn')
+
+  if(!parsed.length){
+    previewEl.innerHTML='<span style="color:#dc3545;">コンビ名が見つかりませんでした</span>'
+    previewEl.style.display='block'
+    applyBtn.style.display='none'
+    return
+  }
+
+  // entriesと照合して一致・不一致を表示
+  const entryNames=currentEntries.map(e=>e.combi_name)
+  const rows=parsed.map((name,i)=>{
+    const matched=entryNames.includes(name)
+    return `<div style="display:flex;gap:8px;align-items:center;padding:3px 0;">
+      <span style="font-size:11px;color:#888;width:20px;text-align:right;flex-shrink:0;">${i+1}</span>
+      <span style="font-size:13px;${matched?'':'color:#dc3545;'}">${name}${matched?'':' ⚠️未提出'}</span>
+    </div>`
+  }).join('')
+
+  // 未提出のコンビ（entryにあるがkōbanにない）
+  const notInKoban=entryNames.filter(n=>!parsed.includes(n))
+  const notInKobanHtml=notInKoban.length
+    ?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:12px;color:#888;">香盤に含まれていない提出: ${notInKoban.join('、')}</div>`
+    :''
+
+  previewEl.innerHTML=rows+notInKobanHtml
+  previewEl.style.display='block'
+  applyBtn.style.display='inline-block'
+  kobanOrder=parsed
+}
+
+async function applyKoban(){
+  if(!kobanOrder.length) return
+  const btn=document.getElementById('koban-apply-btn')
+  const resultEl=document.getElementById('koban-result')
+  btn.textContent='保存中...';btn.disabled=true
+
+  try{
+    // parsed順にorder番号を割り当て
+    // kobanOrderに含まれないentryは末尾に
+    const ordered=[]
+    const remaining=[]
+
+    currentEntries.forEach(e=>{
+      const idx=kobanOrder.indexOf(e.combi_name)
+      if(idx>=0) ordered[idx]=e
+      else remaining.push(e)
+    })
+
+    // orderedの空き（未提出コンビ分）を詰める
+    const finalOrder=ordered.filter(Boolean).concat(remaining)
+
+    // Supabaseにupdateを並列で実行
+    const updates=finalOrder.map((e,i)=>
+      sb.from('entries').update({order:i+1}).eq('id',e.id)
+    )
+    await Promise.all(updates)
+
+    resultEl.textContent='✓ 並び替えを保存しました'
+    resultEl.style.color='#198754'
+    resultEl.style.display='block'
+    btn.textContent='この順番で保存'
+    btn.disabled=false
+
+    // きっかけ表を再読み込み
+    setTimeout(async()=>{
+      closeKoban()
+      await loadEntries(currentLiveId,currentLiveName,currentLiveDlPassword)
+    },800)
+  }catch(e){
+    resultEl.textContent='エラーが発生しました: '+e.message
+    resultEl.style.color='#dc3545'
+    resultEl.style.display='block'
+    btn.textContent='この順番で保存'
+    btn.disabled=false
+    console.error(e)
+  }
+}
+
+// ---- 編集モード ----
 function requestEditMode(){
   if(editMode){
     editMode=false
@@ -505,6 +645,7 @@ function verifyEditPw(){
   } else {document.getElementById('edit-pw-error').style.display='block'}
 }
 
+// ---- ダウンロード ----
 function requestDownload(path,name){
   pendingDlPath=path;pendingDlName=name
   document.getElementById('dl-pw-input').value=''
@@ -540,6 +681,7 @@ async function confirmUpdate(entryId,el){
   el.parentElement.remove()
 }
 
+// ---- PDF ----
 function openPdf(){
   document.getElementById('pdf-title').textContent=`${currentLiveName} きっかけ表`
   const rows=currentEntries.map(e=>`<tr>
@@ -573,22 +715,17 @@ async function savePdf(){
     const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
     const pageW=pdf.internal.pageSize.getWidth()
     const pageH=pdf.internal.pageSize.getHeight()
-    const margin=10
-    const printW=pageW-margin*2
-    const renderWidth=900
+    const margin=10,printW=pageW-margin*2,renderWidth=900
     const body=document.getElementById('pdf-body')
     const headerEl=body.querySelector('div')
     const headerCanvas=await html2canvas(headerEl,{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth})
     const headerMmH=(headerCanvas.height/headerCanvas.width)*printW
     const table=document.getElementById('pdf-main-table')
-    const thead=table.querySelector('thead')
-    const theadCanvas=await html2canvas(thead,{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth})
+    const theadCanvas=await html2canvas(table.querySelector('thead'),{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth})
     const theadMmH=(theadCanvas.height/theadCanvas.width)*printW
-    const rows=table.querySelectorAll('tbody tr')
     const rowCanvases=[]
-    for(const row of rows){
-      const rc=await html2canvas(row,{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth})
-      rowCanvases.push(rc)
+    for(const row of table.querySelectorAll('tbody tr')){
+      rowCanvases.push(await html2canvas(row,{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth}))
     }
     let isFirstPage=true,curY=margin
     const addHeader=async(p,y)=>{
