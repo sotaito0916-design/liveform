@@ -406,8 +406,6 @@ async function toggleLive(liveId,liveName,dlPassword){
   await loadEntries(liveId,liveName,dlPassword)
 }
 
-async function loadEntries(liveId,liveName,dlPassword,displayOrder){
-  // displayOrder が指定されている場合はそれに従って並べる（DBから再取得後）
   async function loadEntries(liveId, liveName, dlPassword, displayOrder){
   // displayOrderが未指定のときlocalStorageから復元
   if(!displayOrder){
