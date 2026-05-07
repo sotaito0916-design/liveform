@@ -17,7 +17,6 @@
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;}
 .modal-box{background:#fff;border-radius:10px;padding:24px;width:90%;max-width:360px;}
 
-/* ライブカード */
 .live-card{border:1px solid #eee;border-radius:10px;margin-bottom:12px;overflow:hidden;background:#fff;}
 .live-card-header{padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .live-card-header:hover{background:#fafafa;}
@@ -25,7 +24,6 @@
 .live-card-body{display:none;border-top:1px solid #eee;overflow-x:auto;}
 .live-card-body.open{display:block;}
 
-/* PDF用テーブル */
 .pdf-table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:16px;table-layout:fixed;}
 .pdf-table th{background:#f5f5f5;padding:4px 3px;text-align:left;border:1px solid #ddd;font-weight:600;font-size:8px;white-space:nowrap;overflow:hidden;}
 .pdf-table td{padding:4px 3px;border:1px solid #ddd;vertical-align:top;word-break:break-all;overflow:hidden;line-height:1.3;}
@@ -63,7 +61,6 @@
     </div>
   </div>
 
-  <!-- 検索欄 -->
   <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:16px;align-items:center;">
     <input type="text" id="search-name" placeholder="ライブ名で検索"
       oninput="filterLives()"
@@ -93,7 +90,7 @@
   </div>
 </div>
 
-<!-- パスワードモーダル（編集） -->
+<!-- 編集モーダル -->
 <div id="edit-modal" class="modal-overlay">
   <div class="modal-box">
     <h3 style="margin-bottom:16px;">編集モードに入る</h3>
@@ -107,7 +104,7 @@
   </div>
 </div>
 
-<!-- パスワードモーダル（ダウンロード） -->
+<!-- DLモーダル -->
 <div id="dl-modal" class="modal-overlay">
   <div class="modal-box">
     <h3 style="margin-bottom:16px;">ファイルをダウンロード</h3>
@@ -138,7 +135,7 @@
       </div>
     </div>
 
-    <!-- Step2: 香盤テキスト入力 -->
+    <!-- Step2: テキスト入力 -->
     <div id="koban-step2" style="display:none;">
       <textarea id="koban-text" placeholder="OPMC&#10;コンビA&#10;コンビB&#10;中MC&#10;コンビC&#10;EDMC"
         style="width:100%;height:220px;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;margin-bottom:12px;"></textarea>
@@ -163,8 +160,8 @@
     <div style="padding:20px;">
       <input type="hidden" id="ef-entry-id">
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
-        <div class="field"><label>① コンビ名</label><input id="ef-combi" placeholder=""></div>
-        <div class="field"><label>出番順</label><input id="ef-order" type="number" placeholder=""></div>
+        <div class="field"><label>① コンビ名</label><input id="ef-combi" placeholder="例: 誕生石"></div>
+        <div class="field"><label>出番順</label><input id="ef-order" type="number" placeholder="例: 3"></div>
       </div>
       <div class="field">
         <label>② 形式</label>
@@ -293,17 +290,12 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)
 // 無視するキーワード
 const IGNORE_LINES=['OPMC','中MC','EDMC']
 
-let userRole='guest'
-let allLives=[]
-let openLiveId=null
-let currentEntries=[]
-let currentLiveName=''
-let currentLiveId=null
-let currentLiveDlPassword=''
+let userRole='guest',allLives=[],openLiveId=null,currentEntries=[]
+let currentLiveName='',currentLiveId=null,currentLiveDlPassword=''
 let editMode=false
 let efState={format:'',desk:null,chair:null,mic:null,other:null,on:'',hari:'',meiten:'',anten:'',itatsuki:null,nasiMode:false,scriptMethod:''}
 let pendingDlPath=null,pendingDlName=null
-let kobanOrder=[]  // プレビュー確定後の並び順
+let kobanOrder=[]  // パース済みコンビ名リスト
 
 async function init(){
   const isGuest=sessionStorage.getItem('guest_mode')==='1'
@@ -353,13 +345,10 @@ function renderLives(lives){
   if(!lives.length) return
   lives.forEach(l=>{
     const card=document.createElement('div')
-    card.className='live-card'
-    card.id=`card-${l.id}`
-    const dateStr=formatDate(l.date)
-    const deadlineStr=formatDeadline(l.deadline)
+    card.className='live-card';card.id=`card-${l.id}`
     const metaParts=[]
-    if(dateStr) metaParts.push(`<span>📅 開催: ${dateStr}</span>`)
-    if(deadlineStr) metaParts.push(`<span>⏰ 締切: ${deadlineStr}</span>`)
+    if(formatDate(l.date)) metaParts.push(`<span>📅 開催: ${formatDate(l.date)}</span>`)
+    if(formatDeadline(l.deadline)) metaParts.push(`<span>⏰ 締切: ${formatDeadline(l.deadline)}</span>`)
     card.innerHTML=`
       <div class="live-card-header" id="header-${l.id}" onclick="toggleLive('${l.id}','${l.name.replace(/'/g,"\\'")}','${l.dl_password||''}')">
         <div style="flex:1;min-width:0;">
@@ -372,8 +361,7 @@ function renderLives(lives){
         <div style="padding:14px;" id="entries-${l.id}">
           <p class="hint" style="font-size:13px;">読み込み中...</p>
         </div>
-      </div>
-    `
+      </div>`
     container.appendChild(card)
   })
 }
@@ -389,10 +377,7 @@ function filterLives(){
   renderLives(filtered)
 }
 
-function clearDateSearch(){
-  document.getElementById('search-date').value=''
-  filterLives()
-}
+function clearDateSearch(){document.getElementById('search-date').value='';filterLives()}
 
 async function toggleLive(liveId,liveName,dlPassword){
   const body=document.getElementById(`body-${liveId}`)
@@ -407,12 +392,11 @@ async function toggleLive(liveId,liveName,dlPassword){
     return
   }
   if(openLiveId){
-    const prevBody=document.getElementById(`body-${openLiveId}`)
-    const prevHeader=document.getElementById(`header-${openLiveId}`)
-    const prevChevron=document.getElementById(`chevron-${openLiveId}`)
-    if(prevBody) prevBody.classList.remove('open')
-    if(prevHeader) prevHeader.classList.remove('active')
-    if(prevChevron){prevChevron.textContent='›';prevChevron.style.transform=''}
+    const pb=document.getElementById(`body-${openLiveId}`)
+    const ph=document.getElementById(`header-${openLiveId}`)
+    const pc=document.getElementById(`chevron-${openLiveId}`)
+    if(pb)pb.classList.remove('open');if(ph)ph.classList.remove('active')
+    if(pc){pc.textContent='›';pc.style.transform=''}
   }
   openLiveId=liveId;currentLiveId=liveId;currentLiveName=liveName;currentLiveDlPassword=dlPassword
   body.classList.add('open');header.classList.add('active')
@@ -422,7 +406,8 @@ async function toggleLive(liveId,liveName,dlPassword){
   await loadEntries(liveId,liveName,dlPassword)
 }
 
-async function loadEntries(liveId,liveName,dlPassword){
+async function loadEntries(liveId,liveName,dlPassword,displayOrder){
+  // displayOrder が指定されている場合はそれに従って並べる（DBから再取得後）
   const container=document.getElementById(`entries-${liveId}`)
   container.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
   const {data}=await sb.from('entries').select('*').eq('live_id',liveId).order('order',{ascending:true})
@@ -433,14 +418,49 @@ async function loadEntries(liveId,liveName,dlPassword){
     const {data:onFiles}=await sb.from('on_files').select('*').eq('live_id',liveId).in('combi_name',combiNames)
     ;(onFiles||[]).forEach(f=>{if(!onFilesMap[f.combi_name])onFilesMap[f.combi_name]=[];onFilesMap[f.combi_name].push(f)})
   }
-  if(!currentEntries.length){
-    container.innerHTML='<p class="hint" style="font-size:13px;">まだ提出がありません</p>'
-    return
+
+  // displayOrder が指定されていれば、その順番で表示行を組み立てる
+  // 未提出コンビ（entryがない）も含めて表示
+  let displayRows=[]
+  if(displayOrder&&displayOrder.length){
+    displayOrder.forEach((name,idx)=>{
+      const e=currentEntries.find(e=>e.combi_name===name)
+      if(e){
+        displayRows.push({entry:e,order:idx+1})
+      } else {
+        // 未提出：ダミー行
+        displayRows.push({entry:null,name,order:idx+1})
+      }
+    })
+    // 香盤にないentryを末尾に追加
+    currentEntries.forEach(e=>{
+      if(!displayOrder.includes(e.combi_name)) displayRows.push({entry:e,order:null})
+    })
+  } else {
+    displayRows=currentEntries.map(e=>({entry:e,order:e.order}))
   }
+
+  if(!displayRows.length){
+    container.innerHTML='<p class="hint" style="font-size:13px;">まだ提出がありません</p>';return
+  }
+
   const editBtnHtml=userRole==='staff'
     ?`<button id="toggle-edit-btn" onclick="requestEditMode()" class="btn-sm" style="margin-left:8px;">編集モード</button>`
     :''
-  const rows=currentEntries.map(e=>{
+
+  const rows=displayRows.map(({entry:e,name:dummyName,order:dispOrder})=>{
+    if(!e){
+      // 未提出行
+      const muted='<span class="muted">−</span>'
+      return `<tr style="opacity:0.5;">
+        <td>${dispOrder??muted}</td>
+        <td style="font-weight:500;"><div style="white-space:nowrap;">${dummyName}</div><div style="font-size:11px;color:#dc3545;">未提出</div></td>
+        <td>${muted}</td><td>${muted}</td><td>${muted}</td>
+        <td>${muted}</td><td>${muted}</td><td>${muted}</td><td>${muted}</td>
+        <td>${muted}</td><td>${muted}</td><td>${muted}</td>
+        ${userRole==='staff'?'<td>−</td>':''}
+      </tr>`
+    }
     const onFiles=onFilesMap[e.combi_name]||[]
     const hasScript=!!e.script_file_path
     const onCell=onFiles.length
@@ -454,7 +474,7 @@ async function loadEntries(liveId,liveName,dlPassword){
           ?'<span style="color:#dc3545;font-size:12px;font-weight:600;">⚠️未</span>'
           :'<span class="muted">−</span>'
     return `<tr>
-      <td>${e.order??'<span class="muted">−</span>'}</td>
+      <td>${dispOrder??e.order??'<span class="muted">−</span>'}</td>
       <td style="font-weight:500;">
         <div style="white-space:nowrap;">${e.combi_name}</div>
         ${e.combi_furigana?`<div style="font-size:11px;color:#888;font-weight:400;white-space:nowrap;">${e.combi_furigana}</div>`:''}
@@ -470,14 +490,13 @@ async function loadEntries(liveId,liveName,dlPassword){
       <td><div>${e.debayashi_full||'<span class="muted">−</span>'}</div><div style="font-size:10px;color:#aaa;margin-top:2px;">出囃子</div></td>
       <td><div>${onCell}</div><div style="font-size:10px;color:#aaa;margin-top:2px;">音源</div></td>
       <td><div>${scriptCell}</div><div style="font-size:10px;color:#aaa;margin-top:2px;">台本</div></td>
-      ${userRole==='staff'?`<td id="edit-col-${e.id}">${editMode?`<button class="btn-sm" onclick="openEditForm('${e.id}')">編集</button>`:'−'}</td>`:''}
+      ${userRole==='staff'?`<td>${editMode?`<button class="btn-sm" onclick="openEditForm('${e.id}')">編集</button>`:'−'}</td>`:''}
     </tr>`
   }).join('')
+
   const editColHeader=userRole==='staff'?'<th></th>':''
   container.innerHTML=`
-    <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">
-      ${editBtnHtml}
-    </div>
+    <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">${editBtnHtml}</div>
     <div style="overflow-x:auto;">
       <table class="kikkake-table">
         <thead><tr>
@@ -487,11 +506,10 @@ async function loadEntries(liveId,liveName,dlPassword){
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>
-  `
+    </div>`
 }
 
-// ---- 香盤入力 ----
+// ---- 香盤 ----
 function openKoban(){
   document.getElementById('koban-pw-input').value=''
   document.getElementById('koban-pw-error').style.display='none'
@@ -505,14 +523,10 @@ function openKoban(){
   kobanOrder=[]
   document.getElementById('koban-modal').style.display='flex'
 }
-
-function closeKoban(){
-  document.getElementById('koban-modal').style.display='none'
-}
+function closeKoban(){document.getElementById('koban-modal').style.display='none'}
 
 function verifyKobanPw(){
   const pw=document.getElementById('koban-pw-input').value
-  // パスワード未設定ライブはそのまま通過
   if(currentLiveDlPassword&&pw!==currentLiveDlPassword){
     document.getElementById('koban-pw-error').style.display='block';return
   }
@@ -520,19 +534,21 @@ function verifyKobanPw(){
   document.getElementById('koban-step2').style.display='block'
 }
 
-// 香盤テキストをパースしてコンビ名リストに変換
 function parseKoban(text){
   const lines=text.split('\n')
   const result=[]
   for(const rawLine of lines){
-    // 前後の空白を除去
     let line=rawLine.trim()
     if(!line) continue
-    // 無視キーワード
     if(IGNORE_LINES.some(ig=>line===ig||line.startsWith(ig))) continue
-    // 先頭の番号を除去（例: "1." "1．" "1 " "①" など）
-    line=line.replace(/^[\d１-９０]+[.\．\s。)）]\s*/,'')
-    line=line.replace(/^[①-⑳]\s*/,'')
+    // 半角数字＋区切り文字
+    line=line.replace(/^\d+[.\．\s。)）、,]\s*/,'')
+    // 全角数字＋区切り文字
+    line=line.replace(/^[０-９]+[.\．\s。)）、,]\s*/,'')
+    // ①〜⑳（U+2460〜U+2473）
+    line=line.replace(/^[\u2460-\u2473]\s*/,'')
+    // ㉑〜㊿（U+3251〜U+325F, U+32B1〜U+32BF）
+    line=line.replace(/^[\u3251-\u325F\u32B1-\u32BF]\s*/,'')
     line=line.trim()
     if(line) result.push(line)
   }
@@ -544,15 +560,10 @@ function previewKoban(){
   const parsed=parseKoban(text)
   const previewEl=document.getElementById('koban-preview')
   const applyBtn=document.getElementById('koban-apply-btn')
-
   if(!parsed.length){
     previewEl.innerHTML='<span style="color:#dc3545;">コンビ名が見つかりませんでした</span>'
-    previewEl.style.display='block'
-    applyBtn.style.display='none'
-    return
+    previewEl.style.display='block';applyBtn.style.display='none';return
   }
-
-  // entriesと照合して一致・不一致を表示
   const entryNames=currentEntries.map(e=>e.combi_name)
   const rows=parsed.map((name,i)=>{
     const matched=entryNames.includes(name)
@@ -561,13 +572,10 @@ function previewKoban(){
       <span style="font-size:13px;${matched?'':'color:#dc3545;'}">${name}${matched?'':' ⚠️未提出'}</span>
     </div>`
   }).join('')
-
-  // 未提出のコンビ（entryにあるがkōbanにない）
   const notInKoban=entryNames.filter(n=>!parsed.includes(n))
   const notInKobanHtml=notInKoban.length
     ?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:12px;color:#888;">香盤に含まれていない提出: ${notInKoban.join('、')}</div>`
     :''
-
   previewEl.innerHTML=rows+notInKobanHtml
   previewEl.style.display='block'
   applyBtn.style.display='inline-block'
@@ -579,45 +587,36 @@ async function applyKoban(){
   const btn=document.getElementById('koban-apply-btn')
   const resultEl=document.getElementById('koban-result')
   btn.textContent='保存中...';btn.disabled=true
-
   try{
-    // parsed順にorder番号を割り当て
-    // kobanOrderに含まれないentryは末尾に
+    // entryがあるものだけorderを更新
     const ordered=[]
     const remaining=[]
-
     currentEntries.forEach(e=>{
       const idx=kobanOrder.indexOf(e.combi_name)
       if(idx>=0) ordered[idx]=e
       else remaining.push(e)
     })
-
-    // orderedの空き（未提出コンビ分）を詰める
     const finalOrder=ordered.filter(Boolean).concat(remaining)
-
-    // Supabaseにupdateを並列で実行
-    const updates=finalOrder.map((e,i)=>
+    await Promise.all(finalOrder.map((e,i)=>
       sb.from('entries').update({order:i+1}).eq('id',e.id)
-    )
-    await Promise.all(updates)
-
-    resultEl.textContent='✓ 並び替えを保存しました'
+    ))
+    resultEl.textContent='✓ 保存しました'
     resultEl.style.color='#198754'
     resultEl.style.display='block'
     btn.textContent='この順番で保存'
     btn.disabled=false
 
-    // きっかけ表を再読み込み
+    // モーダルを閉じてすぐにきっかけ表を香盤順で再描画
     setTimeout(async()=>{
       closeKoban()
-      await loadEntries(currentLiveId,currentLiveName,currentLiveDlPassword)
-    },800)
+      // DBから再取得してkōban順で表示（未提出も含む）
+      await loadEntries(currentLiveId,currentLiveName,currentLiveDlPassword,kobanOrder)
+    },600)
   }catch(e){
     resultEl.textContent='エラーが発生しました: '+e.message
     resultEl.style.color='#dc3545'
     resultEl.style.display='block'
-    btn.textContent='この順番で保存'
-    btn.disabled=false
+    btn.textContent='この順番で保存';btn.disabled=false
     console.error(e)
   }
 }
@@ -628,8 +627,7 @@ function requestEditMode(){
     editMode=false
     const btn=document.getElementById('toggle-edit-btn')
     if(btn){btn.textContent='編集モード';btn.classList.remove('active-info')}
-    loadEntries(currentLiveId,currentLiveName,currentLiveDlPassword)
-    return
+    loadEntries(currentLiveId,currentLiveName,currentLiveDlPassword);return
   }
   document.getElementById('edit-pw-input').value=''
   document.getElementById('edit-pw-error').style.display='none'
@@ -637,15 +635,14 @@ function requestEditMode(){
 }
 function verifyEditPw(){
   if(document.getElementById('edit-pw-input').value===EDIT_PASSWORD){
-    editMode=true
-    document.getElementById('edit-modal').style.display='none'
+    editMode=true;document.getElementById('edit-modal').style.display='none'
     const btn=document.getElementById('toggle-edit-btn')
     if(btn){btn.textContent='編集中 ✓';btn.classList.add('active-info')}
     loadEntries(currentLiveId,currentLiveName,currentLiveDlPassword)
   } else {document.getElementById('edit-pw-error').style.display='block'}
 }
 
-// ---- ダウンロード ----
+// ---- DL ----
 function requestDownload(path,name){
   pendingDlPath=path;pendingDlName=name
   document.getElementById('dl-pw-input').value=''
@@ -713,12 +710,10 @@ async function savePdf(){
   try{
     const {jsPDF}=window.jspdf
     const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'})
-    const pageW=pdf.internal.pageSize.getWidth()
-    const pageH=pdf.internal.pageSize.getHeight()
+    const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight()
     const margin=10,printW=pageW-margin*2,renderWidth=900
     const body=document.getElementById('pdf-body')
-    const headerEl=body.querySelector('div')
-    const headerCanvas=await html2canvas(headerEl,{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth})
+    const headerCanvas=await html2canvas(body.querySelector('div'),{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth})
     const headerMmH=(headerCanvas.height/headerCanvas.width)*printW
     const table=document.getElementById('pdf-main-table')
     const theadCanvas=await html2canvas(table.querySelector('thead'),{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:renderWidth})
