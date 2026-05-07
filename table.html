@@ -16,14 +16,12 @@
 .tool-options.open{display:flex;}
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;}
 .modal-box{background:#fff;border-radius:10px;padding:24px;width:90%;max-width:360px;}
-
 .live-card{border:1px solid #eee;border-radius:10px;margin-bottom:12px;overflow:hidden;background:#fff;}
 .live-card-header{padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .live-card-header:hover{background:#fafafa;}
 .live-card-header.active{background:#f0f5ff;border-bottom:1px solid #dde6ff;}
 .live-card-body{display:none;border-top:1px solid #eee;overflow-x:auto;}
 .live-card-body.open{display:block;}
-
 .pdf-table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:16px;table-layout:fixed;}
 .pdf-table th{background:#f5f5f5;padding:4px 3px;text-align:left;border:1px solid #ddd;font-weight:600;font-size:8px;white-space:nowrap;overflow:hidden;}
 .pdf-table td{padding:4px 3px;border:1px solid #ddd;vertical-align:top;word-break:break-all;overflow:hidden;line-height:1.3;}
@@ -37,11 +35,9 @@
 .pdf-table th:nth-child(7){width:7%;}
 .pdf-table th:nth-child(8){width:21%;}
 .pdf-table th:nth-child(9){width:21%;}
-
 #pdf-body{font-size:11px;}
 #pdf-body h2{font-size:14px !important;}
 #pdf-body p{font-size:10px !important;}
-
 @media print{nav,button{display:none!important}}
 </style>
 </head>
@@ -60,7 +56,6 @@
       <button onclick="openPdf()" id="print-btn" style="display:none;">PDF出力</button>
     </div>
   </div>
-
   <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:16px;align-items:center;">
     <input type="text" id="search-name" placeholder="ライブ名で検索"
       oninput="filterLives()"
@@ -71,7 +66,6 @@
       <button onclick="clearDateSearch()" style="padding:9px 10px;font-size:12px;color:#888;border-radius:8px;" title="日付をクリア">✕</button>
     </div>
   </div>
-
   <p id="empty-msg" style="color:#888;display:none;">ライブが見つかりません</p>
   <div id="live-list"></div>
 </main>
@@ -123,8 +117,6 @@
   <div class="modal-box" style="max-width:480px;width:90%;">
     <h3 style="margin-bottom:8px;">香盤入力</h3>
     <p class="hint" style="margin-bottom:16px;">コンビ名を1行1組で貼り付けてください。OPMC・中MC・EDMCは自動で無視されます。</p>
-
-    <!-- Step1: パスワード -->
     <div id="koban-step1">
       <p style="font-size:13px;font-weight:500;margin-bottom:8px;">ライブのダウンロード用パスワードを入力してください</p>
       <div class="field"><input type="password" id="koban-pw-input" placeholder="パスワード" onkeydown="if(event.key==='Enter') verifyKobanPw()"></div>
@@ -134,8 +126,6 @@
         <button onclick="closeKoban()">キャンセル</button>
       </div>
     </div>
-
-    <!-- Step2: テキスト入力 -->
     <div id="koban-step2" style="display:none;">
       <textarea id="koban-text" placeholder="OPMC&#10;コンビA&#10;コンビB&#10;中MC&#10;コンビC&#10;EDMC"
         style="width:100%;height:220px;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;margin-bottom:12px;"></textarea>
@@ -159,54 +149,7 @@
     </div>
     <div style="padding:20px;">
       <input type="hidden" id="ef-entry-id">
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
-        <div class="field"><label>① コンビ名</label><input id="ef-combi" placeholder=""></div>
-        <div class="field"><label>出番順</label>
-  <select id="ef-order" style="width:120px;">
-    <option value="">選択</option>
-    <option value="1">1</option>
-    <option value="2">2</option>
-    <option value="3">3</option>
-    <option value="4">4</option>
-    <option value="5">5</option>
-    <option value="6">6</option>
-    <option value="7">7</option>
-    <option value="8">8</option>
-    <option value="9">9</option>
-    <option value="10">10</option>
-    <option value="11">11</option>
-    <option value="12">12</option>
-    <option value="13">13</option>
-    <option value="14">14</option>
-    <option value="15">15</option>
-    <option value="16">16</option>
-    <option value="17">17</option>
-    <option value="18">18</option>
-    <option value="19">19</option>
-    <option value="20">20</option>
-    <option value="21">21</option>
-    <option value="22">22</option>
-    <option value="23">23</option>
-    <option value="24">24</option>
-    <option value="25">25</option>
-    <option value="26">26</option>
-    <option value="27">27</option>
-    <option value="28">28</option>
-    <option value="29">29</option>
-    <option value="30">30</option>
-    <option value="31">31</option>
-    <option value="32">32</option>
-    <option value="33">33</option>
-    <option value="34">34</option>
-    <option value="35">35</option>
-    <option value="36">36</option>
-    <option value="37">37</option>
-    <option value="38">38</option>
-    <option value="39">39</option>
-    <option value="40">40</option>
-  </select>
-</div>
-      </div>
+      <div class="field"><label>① コンビ名</label><input id="ef-combi"></div>
       <div class="field">
         <label>② 形式</label>
         <div class="btn-group" id="ef-format-group">
@@ -329,8 +272,6 @@
 const SUPABASE_URL='https://hmfbbpglitxggrfxghsd.supabase.co'
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)
-
-// 無視するキーワード
 const IGNORE_LINES=['OPMC','中MC','EDMC']
 
 let userRole='guest',allLives=[],openLiveId=null,currentEntries=[]
@@ -338,7 +279,8 @@ let currentLiveName='',currentLiveId=null,currentLiveDlPassword=''
 let editMode=false
 let efState={format:'',desk:null,chair:null,mic:null,other:null,on:'',hari:'',meiten:'',anten:'',itatsuki:null,nasiMode:false,scriptMethod:''}
 let pendingDlPath=null,pendingDlName=null
-let kobanOrder=[]  // パース済みコンビ名リスト
+let kobanOrder=[]
+let currentDisplayRows=[]  // 現在画面に表示中の行（香盤順を含む）
 
 async function init(){
   const isGuest=sessionStorage.getItem('guest_mode')==='1'
@@ -432,6 +374,7 @@ async function toggleLive(liveId,liveName,dlPassword){
     openLiveId=null;currentLiveId=null;currentLiveName='';currentLiveDlPassword=''
     document.getElementById('print-btn').style.display='none'
     document.getElementById('koban-btn').style.display='none'
+    currentDisplayRows=[]
     return
   }
   if(openLiveId){
@@ -449,12 +392,12 @@ async function toggleLive(liveId,liveName,dlPassword){
   await loadEntries(liveId,liveName,dlPassword)
 }
 
-  async function loadEntries(liveId, liveName, dlPassword, displayOrder){
-  // displayOrderが未指定のときlocalStorageから復元
+async function loadEntries(liveId,liveName,dlPassword,displayOrder){
+  // displayOrderが未指定のときSupabaseから復元
   if(!displayOrder){
-   const {data:liveData}=await sb.from('lives').select('koban_order').eq('id',liveId).single()
-   if(liveData?.koban_order?.length) displayOrder=liveData.koban_order
- }
+    const {data:liveData}=await sb.from('lives').select('koban_order').eq('id',liveId).single()
+    if(liveData?.koban_order?.length) displayOrder=liveData.koban_order
+  }
   const container=document.getElementById(`entries-${liveId}`)
   container.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
   const {data}=await sb.from('entries').select('*').eq('live_id',liveId).order('order',{ascending:true})
@@ -465,39 +408,31 @@ async function toggleLive(liveId,liveName,dlPassword){
     const {data:onFiles}=await sb.from('on_files').select('*').eq('live_id',liveId).in('combi_name',combiNames)
     ;(onFiles||[]).forEach(f=>{if(!onFilesMap[f.combi_name])onFilesMap[f.combi_name]=[];onFilesMap[f.combi_name].push(f)})
   }
-
-  // displayOrder が指定されていれば、その順番で表示行を組み立てる
-  // 未提出コンビ（entryがない）も含めて表示
   let displayRows=[]
   if(displayOrder&&displayOrder.length){
     displayOrder.forEach((name,idx)=>{
       const e=currentEntries.find(e=>e.combi_name===name)
-      if(e){
-        displayRows.push({entry:e,order:idx+1})
-      } else {
-        // 未提出：ダミー行
-        displayRows.push({entry:null,name,order:idx+1})
-      }
+      if(e) displayRows.push({entry:e,order:idx+1,dummy:false})
+      else displayRows.push({entry:null,name,order:idx+1,dummy:true})
     })
-    // 香盤にないentryを末尾に追加
     currentEntries.forEach(e=>{
-      if(!displayOrder.includes(e.combi_name)) displayRows.push({entry:e,order:null})
+      if(!displayOrder.includes(e.combi_name)) displayRows.push({entry:e,order:null,dummy:false})
     })
   } else {
-    displayRows=currentEntries.map(e=>({entry:e,order:e.order}))
+    displayRows=currentEntries.map(e=>({entry:e,order:e.order,dummy:false}))
   }
+
+  // 現在の表示順を保存（PDF出力時に使用）
+  currentDisplayRows=displayRows
 
   if(!displayRows.length){
     container.innerHTML='<p class="hint" style="font-size:13px;">まだ提出がありません</p>';return
   }
-
   const editBtnHtml=userRole==='staff'
     ?`<button id="toggle-edit-btn" onclick="requestEditMode()" class="btn-sm" style="margin-left:8px;">編集モード</button>`
     :''
-
-  const rows=displayRows.map(({entry:e,name:dummyName,order:dispOrder})=>{
-    if(!e){
-      // 未提出行
+  const rows=displayRows.map(({entry:e,name:dummyName,order:dispOrder,dummy})=>{
+    if(dummy){
       const muted='<span class="muted">−</span>'
       return `<tr style="opacity:0.5;">
         <td>${dispOrder??muted}</td>
@@ -540,7 +475,6 @@ async function toggleLive(liveId,liveName,dlPassword){
       ${userRole==='staff'?`<td>${editMode?`<button class="btn-sm" onclick="openEditForm('${e.id}')">編集</button>`:'−'}</td>`:''}
     </tr>`
   }).join('')
-
   const editColHeader=userRole==='staff'?'<th></th>':''
   container.innerHTML=`
     <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">${editBtnHtml}</div>
@@ -588,13 +522,9 @@ function parseKoban(text){
     let line=rawLine.trim()
     if(!line) continue
     if(IGNORE_LINES.some(ig=>line===ig||line.startsWith(ig))) continue
-    // 半角数字＋区切り文字
     line=line.replace(/^\d+[.\．\s。)）、,]\s*/,'')
-    // 全角数字＋区切り文字
     line=line.replace(/^[０-９]+[.\．\s。)）、,]\s*/,'')
-    // ①〜⑳（U+2460〜U+2473）
     line=line.replace(/^[\u2460-\u2473]\s*/,'')
-    // ㉑〜㊿（U+3251〜U+325F, U+32B1〜U+32BF）
     line=line.replace(/^[\u3251-\u325F\u32B1-\u32BF]\s*/,'')
     line=line.trim()
     if(line) result.push(line)
@@ -635,7 +565,6 @@ async function applyKoban(){
   const resultEl=document.getElementById('koban-result')
   btn.textContent='保存中...';btn.disabled=true
   try{
-    // entryがあるものだけorderを更新
     const ordered=[]
     const remaining=[]
     currentEntries.forEach(e=>{
@@ -653,11 +582,8 @@ async function applyKoban(){
     resultEl.style.display='block'
     btn.textContent='この順番で保存'
     btn.disabled=false
-
-    // モーダルを閉じてすぐにきっかけ表を香盤順で再描画
     setTimeout(async()=>{
       closeKoban()
-      // DBから再取得してkōban順で表示（未提出も含む）
       await loadEntries(currentLiveId,currentLiveName,currentLiveDlPassword,kobanOrder)
     },600)
   }catch(e){
@@ -729,8 +655,11 @@ async function confirmUpdate(entryId,el){
 // ---- PDF ----
 function openPdf(){
   document.getElementById('pdf-title').textContent=`${currentLiveName} きっかけ表`
-  const rows=currentEntries.map(e=>`<tr>
-    <td class="nowrap">${e.order??'−'}</td>
+  // 香盤順（currentDisplayRows）を使ってPDF行を生成、未提出行は除外
+  const rows=currentDisplayRows
+    .filter(r=>!r.dummy)
+    .map(({entry:e,order:dispOrder})=>`<tr>
+    <td class="nowrap">${dispOrder??e.order??'−'}</td>
     <td style="font-weight:600;">${e.combi_name}${e.combi_furigana?`<div style="font-size:8px;color:#888;font-weight:400;">${e.combi_furigana}</div>`:''}</td>
     <td class="nowrap">${e.format==='漫才'?'<span style="background:#d1e7dd;color:#0f5132;padding:1px 3px;border-radius:99px;font-size:8px;">漫才</span>':e.format==='ピン'?'<span style="background:#e2d9f3;color:#432874;padding:1px 3px;border-radius:99px;font-size:8px;">ピン</span>':e.format==='コント'?'<span style="background:#cfe2ff;color:#084298;padding:1px 3px;border-radius:99px;font-size:8px;">コント</span>':'−'}</td>
     <td>${e.tools||'−'}</td>
@@ -811,7 +740,6 @@ function openEditForm(entryId){
   efReset()
   document.getElementById('ef-entry-id').value=e.id
   document.getElementById('ef-combi').value=e.combi_name||''
-  document.getElementById('ef-order').value=e.order||''
   if(e.format) efSetFormat(e.format)
   if(e.tools&&e.tools!=='ナシ'){
     const t=e.tools
@@ -855,7 +783,6 @@ async function saveEditForm(){
   try{
     await sb.from('entries').update({
       combi_name:document.getElementById('ef-combi').value.trim()||null,
-      order:document.getElementById('ef-order').value?parseInt(document.getElementById('ef-order').value):null,
       format:efState.format||null,tools:efState.format!=='漫才'?efGetToolsText():null,
       itatsuki:efState.format!=='漫才'?efGetItatsuki():null,
       chuku_on:efState.on||null,chuku_hari:efState.hari||null,
