@@ -408,6 +408,12 @@ async function toggleLive(liveId,liveName,dlPassword){
 
 async function loadEntries(liveId,liveName,dlPassword,displayOrder){
   // displayOrder が指定されている場合はそれに従って並べる（DBから再取得後）
+  async function loadEntries(liveId, liveName, dlPassword, displayOrder){
+  // displayOrderが未指定のときlocalStorageから復元
+  if(!displayOrder){
+    const saved = localStorage.getItem(`koban_${liveId}`)
+    if(saved) displayOrder = JSON.parse(saved)
+  }
   const container=document.getElementById(`entries-${liveId}`)
   container.innerHTML='<p class="hint" style="font-size:13px;">読み込み中...</p>'
   const {data}=await sb.from('entries').select('*').eq('live_id',liveId).order('order',{ascending:true})
@@ -600,6 +606,7 @@ async function applyKoban(){
     await Promise.all(finalOrder.map((e,i)=>
       sb.from('entries').update({order:i+1}).eq('id',e.id)
     ))
+    localStorage.setItem(`koban_${currentLiveId}`, JSON.stringify(kobanOrder))
     resultEl.textContent='✓ 保存しました'
     resultEl.style.color='#198754'
     resultEl.style.display='block'
