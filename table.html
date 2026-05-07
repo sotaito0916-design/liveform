@@ -328,7 +328,6 @@
 <script>
 const SUPABASE_URL='https://hmfbbpglitxggrfxghsd.supabase.co'
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
-const EDIT_PASSWORD='LUDO2026'
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)
 
 // 無視するキーワード
@@ -683,7 +682,7 @@ function requestEditMode(){
   document.getElementById('edit-modal').style.display='flex'
 }
 function verifyEditPw(){
-  if(document.getElementById('edit-pw-input').value===EDIT_PASSWORD){
+  if(document.getElementById('edit-pw-input').value===currentLiveDlPassword){
     editMode=true;document.getElementById('edit-modal').style.display='none'
     const btn=document.getElementById('toggle-edit-btn')
     if(btn){btn.textContent='編集中 ✓';btn.classList.add('active-info')}
