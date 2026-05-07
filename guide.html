@@ -20,172 +20,43 @@
   --accent-admin-light:#fde8d8;
   --radius:12px;
 }
-
 *{box-sizing:border-box;margin:0;padding:0;}
-
-body{
-  font-family:'Noto Sans JP',sans-serif;
-  background:var(--bg);
-  color:var(--text);
-  line-height:1.75;
-  padding-bottom:80px;
-}
-
-header{
-  background:var(--text);
-  color:#fff;
-  padding:48px 24px 40px;
-  text-align:center;
-}
-header h1{
-  font-size:clamp(22px,5vw,34px);
-  font-weight:700;
-  letter-spacing:-.01em;
-  margin-bottom:10px;
-}
-header p{
-  font-size:14px;
-  color:#a09890;
-}
-
-.tab-nav{
-  display:flex;
-  gap:0;
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  overflow-x:auto;
-  position:sticky;
-  top:0;
-  z-index:100;
-  scrollbar-width:none;
-}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);line-height:1.75;padding-bottom:80px;}
+header{background:var(--text);color:#fff;padding:48px 24px 40px;text-align:center;}
+header h1{font-size:clamp(22px,5vw,34px);font-weight:700;letter-spacing:-.01em;margin-bottom:10px;}
+header p{font-size:14px;color:#a09890;}
+.tab-nav{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;position:sticky;top:0;z-index:100;scrollbar-width:none;}
 .tab-nav::-webkit-scrollbar{display:none;}
-.tab-btn{
-  flex:1;
-  min-width:100px;
-  padding:14px 10px;
-  border:none;
-  background:none;
-  font-family:'Noto Sans JP',sans-serif;
-  font-size:13px;
-  font-weight:500;
-  color:var(--muted);
-  cursor:pointer;
-  border-bottom:2px solid transparent;
-  transition:all .18s;
-  white-space:nowrap;
-}
+.tab-btn{flex:1;min-width:100px;padding:14px 10px;border:none;background:none;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .18s;white-space:nowrap;}
 .tab-btn:hover{color:var(--text);}
 .tab-btn.active-performer{color:var(--accent-performer);border-bottom-color:var(--accent-performer);}
 .tab-btn.active-staff{color:var(--accent-staff);border-bottom-color:var(--accent-staff);}
 .tab-btn.active-admin{color:var(--accent-admin);border-bottom-color:var(--accent-admin);}
-
 .panel{display:none;max-width:680px;margin:0 auto;padding:32px 20px;}
 .panel.active{display:block;animation:fadeIn .2s ease;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-
-.section{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  margin-bottom:16px;
-  overflow:hidden;
-}
-.section-header{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:18px 20px;
-  border-bottom:1px solid var(--border);
-}
-.section-icon{
-  width:36px;
-  height:36px;
-  border-radius:8px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:'DM Mono',monospace;
-  font-size:11px;
-  font-weight:500;
-  flex-shrink:0;
-}
-.section-title{
-  font-size:15px;
-  font-weight:700;
-}
-.section-body{
-  padding:18px 20px;
-}
-
+.section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
+.section-header{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border);}
+.section-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;flex-shrink:0;}
+.section-title{font-size:15px;font-weight:700;}
+.section-body{padding:18px 20px;}
 .steps{list-style:none;}
-.steps li{
-  display:flex;
-  gap:14px;
-  align-items:flex-start;
-  padding:10px 0;
-  border-bottom:1px solid var(--border);
-  font-size:14px;
-}
+.steps li{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;}
 .steps li:last-child{border-bottom:none;}
-.step-num{
-  font-family:'DM Mono',monospace;
-  font-size:11px;
-  font-weight:500;
-  width:22px;
-  height:22px;
-  border-radius:50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0;
-  margin-top:2px;
-}
-.step-text strong{
-  display:block;
-  font-weight:700;
-  margin-bottom:2px;
-}
-.step-text span{
-  font-size:13px;
-  color:var(--muted);
-}
-
-.hint-box{
-  border-radius:8px;
-  padding:14px 16px;
-  font-size:13px;
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  align-items:flex-start;
-}
-
-.security-banner{
-  background:var(--text);
-  color:#fff;
-  border-radius:var(--radius);
-  padding:20px 22px;
-  margin-bottom:16px;
-  display:flex;
-  gap:14px;
-  align-items:flex-start;
-}
+.step-num{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.step-text strong{display:block;font-weight:700;margin-bottom:2px;}
+.step-text span{font-size:13px;color:var(--muted);}
+.hint-box{border-radius:8px;padding:14px 16px;font-size:13px;margin-top:12px;display:flex;gap:10px;align-items:flex-start;}
+.security-banner{background:var(--text);color:#fff;border-radius:var(--radius);padding:20px 22px;margin-bottom:16px;display:flex;gap:14px;align-items:flex-start;}
 .security-banner .icon{font-size:22px;flex-shrink:0;}
 .security-banner h3{font-size:14px;font-weight:700;margin-bottom:4px;}
 .security-banner p{font-size:13px;color:#b0a898;line-height:1.6;}
-
-/* performer */
 .performer .section-icon{background:var(--accent-performer-light);color:var(--accent-performer);}
 .performer .step-num{background:var(--accent-performer-light);color:var(--accent-performer);}
 .performer .hint-box{background:var(--accent-performer-light);color:var(--accent-performer);}
-
-/* staff */
 .staff .section-icon{background:var(--accent-staff-light);color:var(--accent-staff);}
 .staff .step-num{background:var(--accent-staff-light);color:var(--accent-staff);}
 .staff .hint-box{background:var(--accent-staff-light);color:var(--accent-staff);}
-
-/* admin */
 .admin .section-icon{background:var(--accent-admin-light);color:var(--accent-admin);}
 .admin .step-num{background:var(--accent-admin-light);color:var(--accent-admin);}
 .admin .hint-box{background:var(--accent-admin-light);color:var(--accent-admin);}
@@ -257,7 +128,7 @@ header p{
         <li>
           <div class="step-num">2</div>
           <div class="step-text">
-            <strong>コンビ名・出番順・形式を入力</strong>
+            <strong>コンビ名・形式を入力</strong>
             <span>コンビ名は正確に入力してください。同じコンビ名で再提出すると自動で上書きされます。</span>
           </div>
         </li>
@@ -395,7 +266,7 @@ header p{
           <div class="step-num">2</div>
           <div class="step-text">
             <strong>内容を確認</strong>
-            <span>出番順・コンビ名・形式・道具・板付・音響/照明・明転/暗転きっかけ・出囃子が一覧で確認できます。⚠️は未提出を意味します。</span>
+            <span>コンビ名・形式・道具・板付・音響/照明・明転/暗転きっかけ・出囃子が一覧で確認できます。⚠️は未提出を意味します。</span>
           </div>
         </li>
       </ul>
@@ -405,6 +276,48 @@ header p{
   <div class="section">
     <div class="section-header">
       <div class="section-icon">03</div>
+      <p class="section-title">香盤を入力して出番順を並び替える</p>
+    </div>
+    <div class="section-body">
+      <ul class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-text">
+            <strong>ライブを開いて「香盤入力」ボタンを押す</strong>
+            <span>ライブカードを開いた状態で右上の「香盤入力」ボタンを押します。</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <strong>ダウンロード用パスワードを入力</strong>
+            <span>ライブ作成者から受け取ったパスワードを入力します。</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <strong>香盤テキストを貼り付ける</strong>
+            <span>コンビ名を1行1組で貼り付けてください。OPMC・中MC・EDMCは自動で無視されます。番号付きでも問題ありません。</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <div class="step-text">
+            <strong>プレビューを確認して保存</strong>
+            <span>「プレビュー」で順番を確認し、「この順番で保存」を押すときっかけ表に即座に反映されます。未提出のコンビは薄く表示されます。</span>
+          </div>
+        </li>
+      </ul>
+      <div class="hint-box">
+        <div>香盤は保存されるため、後からフォームを提出しても順番は維持されます。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">04</div>
       <p class="section-title">PDF出力して印刷する</p>
     </div>
     <div class="section-body">
@@ -429,7 +342,7 @@ header p{
 
   <div class="section">
     <div class="section-header">
-      <div class="section-icon">04</div>
+      <div class="section-icon">05</div>
       <p class="section-title">きっかけの内容を修正する</p>
     </div>
     <div class="section-body">
@@ -444,8 +357,8 @@ header p{
         <li>
           <div class="step-num">2</div>
           <div class="step-text">
-            <strong>スタッフ用パスワードを入力</strong>
-            <span>パスワードはライブ作成者に確認してください。</span>
+            <strong>ダウンロード用パスワードを入力</strong>
+            <span>ライブ作成者から受け取ったパスワードを入力します。</span>
           </div>
         </li>
         <li>
@@ -497,14 +410,14 @@ header p{
           <div class="step-num">3</div>
           <div class="step-text">
             <strong>ダウンロード用パスワードを設定</strong>
-            <span>音響・台本のダウンロードに使うパスワードを決めます。<strong>作成後は確認できないので必ずメモしてください。</strong></span>
+            <span>音響・台本のダウンロードおよびきっかけ表の編集・香盤入力に使うパスワードを決めます。<strong>作成後は確認できないので必ずメモしてください。</strong></span>
           </div>
         </li>
         <li>
           <div class="step-num">4</div>
           <div class="step-text">
             <strong>スタッフに共有する</strong>
-            <span>ダウンロード用パスワードとスタッフ用パスワードをスタッフに伝えてください。</span>
+            <span>ダウンロード用パスワードをスタッフに伝えてください。</span>
           </div>
         </li>
       </ul>
@@ -514,6 +427,41 @@ header p{
   <div class="section">
     <div class="section-header">
       <div class="section-icon">02</div>
+      <p class="section-title">香盤を入力して出番順を設定する</p>
+    </div>
+    <div class="section-body">
+      <ul class="steps">
+        <li>
+          <div class="step-num">1</div>
+          <div class="step-text">
+            <strong>きっかけ表ページでライブを開く</strong>
+            <span>対象ライブのカードをタップして提出一覧を展開します。</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <strong>「香盤入力」ボタンを押す</strong>
+            <span>右上の「香盤入力」ボタンからダウンロード用パスワードを入力して進みます。</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <strong>香盤テキストを貼り付けて保存</strong>
+            <span>コンビ名を1行1組で貼り付けてください。OPMC・中MC・EDMCは自動で無視されます。保存するとすべての端末のきっかけ表に即座に反映されます。</span>
+          </div>
+        </li>
+      </ul>
+      <div class="hint-box">
+        <div>後からフォームを提出しても香盤の順番は維持されます。未提出のコンビは薄く表示されます。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">03</div>
       <p class="section-title">提出状況を確認する</p>
     </div>
     <div class="section-body">
@@ -538,7 +486,7 @@ header p{
 
   <div class="section">
     <div class="section-header">
-      <div class="section-icon">03</div>
+      <div class="section-icon">04</div>
       <p class="section-title">ライブを非表示にする</p>
     </div>
     <div class="section-body">
