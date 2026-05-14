@@ -276,11 +276,13 @@ const IGNORE_LINES=['OPMC','中MC','EDMC']
 
 let userRole='guest',allLives=[],openLiveId=null,currentEntries=[]
 let currentLiveName='',currentLiveId=null,currentLiveDlPassword=''
-let editMode=false
+let editMode=false,isVerifiedStaff=false  // このライブにverified参加しているか
 let efState={format:'',desk:null,chair:null,mic:null,other:null,on:'',hari:'',meiten:'',anten:'',itatsuki:null,nasiMode:false,scriptMethod:''}
 let pendingDlPath=null,pendingDlName=null
 let kobanOrder=[]
-let currentDisplayRows=[]  // 現在画面に表示中の行（香盤順を含む）
+let currentDisplayRows=[]
+let currentUserId=null
+let verifiedLiveIds=[]  // verified=trueで参加しているライブIDリスト
 
 async function init(){
   const isGuest=sessionStorage.getItem('guest_mode')==='1'
@@ -291,11 +293,15 @@ async function init(){
     userRole='guest'
     nav.innerHTML=`<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">ゲスト</span><button class="btn-sm" onclick="logout()">トップに戻る</button></div>`
   } else {
-    const {data:profile}=await sb.from('profiles').select('*').eq('id',session.user.id).single()
+    currentUserId=session.user.id
+    const {data:profile}=await sb.from('profiles').select('*').eq('id',currentUserId).single()
     userRole=profile?.role||'performer'
     const name=profile?.display_name||session.user.email
     if(userRole==='staff'){
       nav.innerHTML=`<a href="staff.html">スタッフページ</a><a href="table.html" class="active">きっかけ表</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
+      // verified参加済みライブIDを取得
+      const {data:sl}=await sb.from('staff_lives').select('live_id').eq('user_id',currentUserId).eq('verified',true)
+      verifiedLiveIds=(sl||[]).map(s=>s.live_id)
     } else {
       nav.innerHTML=`<a href="form.html">フォーム提出</a><a href="table.html" class="active">きっかけ表</a><a href="mypage.html">マイページ</a><div class="nav-right"><span class="nav-user">${name}</span><button class="btn-sm" onclick="logout()">ログアウト</button></div>`
     }
@@ -372,6 +378,7 @@ async function toggleLive(liveId,liveName,dlPassword){
     body.classList.remove('open');header.classList.remove('active')
     chevron.textContent='›';chevron.style.transform=''
     openLiveId=null;currentLiveId=null;currentLiveName='';currentLiveDlPassword=''
+    isVerifiedStaff=false
     document.getElementById('print-btn').style.display='none'
     document.getElementById('koban-btn').style.display='none'
     currentDisplayRows=[]
@@ -385,6 +392,8 @@ async function toggleLive(liveId,liveName,dlPassword){
     if(pc){pc.textContent='›';pc.style.transform=''}
   }
   openLiveId=liveId;currentLiveId=liveId;currentLiveName=liveName;currentLiveDlPassword=dlPassword
+  // このライブにverified参加しているか確認
+  isVerifiedStaff=verifiedLiveIds.includes(liveId)
   body.classList.add('open');header.classList.add('active')
   chevron.textContent='›';chevron.style.transform='rotate(90deg)'
   document.getElementById('print-btn').style.display='inline-block'
@@ -393,7 +402,6 @@ async function toggleLive(liveId,liveName,dlPassword){
 }
 
 async function loadEntries(liveId,liveName,dlPassword,displayOrder){
-  // displayOrderが未指定のときSupabaseから復元
   if(!displayOrder){
     const {data:liveData}=await sb.from('lives').select('koban_order').eq('id',liveId).single()
     if(liveData?.koban_order?.length) displayOrder=liveData.koban_order
@@ -421,10 +429,7 @@ async function loadEntries(liveId,liveName,dlPassword,displayOrder){
   } else {
     displayRows=currentEntries.map(e=>({entry:e,order:e.order,dummy:false}))
   }
-
-  // 現在の表示順を保存（PDF出力時に使用）
   currentDisplayRows=displayRows
-
   if(!displayRows.length){
     container.innerHTML='<p class="hint" style="font-size:13px;">まだ提出がありません</p>';return
   }
@@ -445,13 +450,17 @@ async function loadEntries(liveId,liveName,dlPassword,displayOrder){
     }
     const onFiles=onFilesMap[e.combi_name]||[]
     const hasScript=!!e.script_file_path
+    // verified参加スタッフはパスワードなしでDL可能
+    const dlCall=isVerifiedStaff
+      ?`directDownload`
+      :`requestDownload`
     const onCell=onFiles.length
-      ?onFiles.map(f=>`<button onclick="requestDownload('${f.file_path}','${e.combi_name}_${f.file_label||'音響'}')" style="display:block;color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;margin-bottom:2px;">${f.file_label||'DL'}</button>`).join('')
+      ?onFiles.map(f=>`<button onclick="${dlCall}('${f.file_path}','${e.combi_name}_${f.file_label||'音響'}')" style="display:block;color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;margin-bottom:2px;">${f.file_label||'DL'}</button>`).join('')
       :e.chuku_on==='有り'?'<span style="color:#dc3545;font-weight:600;font-size:12px;">⚠️未</span>':'<span class="muted">−</span>'
     const scriptCell=e.script_method==='当日持参'
       ?'<span style="font-size:12px;color:#856404;">当日持参</span>'
       :hasScript
-        ?`<button onclick="requestDownload('${e.script_file_path}','${e.combi_name}_台本')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`
+        ?`<button onclick="${dlCall}('${e.script_file_path}','${e.combi_name}_台本')" style="color:#0d6efd;font-size:12px;background:none;border:none;cursor:pointer;padding:0;">DL</button>`
         :e.script_method==='事前提出'
           ?'<span style="color:#dc3545;font-size:12px;font-weight:600;">⚠️未</span>'
           :'<span class="muted">−</span>'
@@ -617,6 +626,11 @@ function verifyEditPw(){
 }
 
 // ---- DL ----
+// パスワードなしで直接DL（verified参加スタッフ用）
+async function directDownload(path,filename){
+  await downloadFile(path,filename)
+}
+
 function requestDownload(path,name){
   pendingDlPath=path;pendingDlName=name
   document.getElementById('dl-pw-input').value=''
@@ -655,7 +669,6 @@ async function confirmUpdate(entryId,el){
 // ---- PDF ----
 function openPdf(){
   document.getElementById('pdf-title').textContent=`${currentLiveName} きっかけ表`
-  // 香盤順（currentDisplayRows）を使ってPDF行を生成、未提出行は除外
   const rows=currentDisplayRows
     .filter(r=>!r.dummy)
     .map(({entry:e,order:dispOrder})=>`<tr>
