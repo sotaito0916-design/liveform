@@ -672,15 +672,6 @@ function openPdf(){
  const rows=currentDisplayRows
   .map(({entry:e,name:dummyName,order:dispOrder,dummy})=>{
     if(dummy) return `<tr>
-      <td class="nowrap">${dispOrder??'−'}</td>
-      <td style="font-weight:600;">${dummyName}</td>
-      <td>−</td><td>−</td><td>−</td><td>−</td><td>−</td><td>−</td><td>−</td>
-    </tr>`
-    return `<tr>
-      <td class="nowrap">${dispOrder??e.order??'−'}</td>
-      ...既存の内容...
-    </tr>`
-  }).join('')
     <td class="nowrap">${dispOrder??e.order??'−'}</td>
     <td style="font-weight:600;">${e.combi_name}${e.combi_furigana?`<div style="font-size:8px;color:#888;font-weight:400;">${e.combi_furigana}</div>`:''}</td>
     <td class="nowrap">${e.format==='漫才'?'<span style="background:#d1e7dd;color:#0f5132;padding:1px 3px;border-radius:99px;font-size:8px;">漫才</span>':e.format==='ピン'?'<span style="background:#e2d9f3;color:#432874;padding:1px 3px;border-radius:99px;font-size:8px;">ピン</span>':e.format==='コント'?'<span style="background:#cfe2ff;color:#084298;padding:1px 3px;border-radius:99px;font-size:8px;">コント</span>':'−'}</td>
