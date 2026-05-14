@@ -6,6 +6,10 @@
 <title>スタッフページ</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="style.css">
+<style>
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;}
+.modal-box{background:#fff;border-radius:10px;padding:24px;width:90%;max-width:360px;}
+</style>
 </head>
 <body>
 <nav>
@@ -47,6 +51,22 @@
   </div>
 </main>
 
+<!-- パスワード確認モーダル -->
+<div id="pw-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h3 style="margin-bottom:8px;">ライブに参加する</h3>
+    <p class="hint" style="margin-bottom:16px;">このライブのダウンロード用パスワードを入力してください。参加後は音響・台本をパスワードなしでダウンロードできます。</p>
+    <div class="field">
+      <input type="password" id="pw-modal-input" placeholder="パスワード" onkeydown="if(event.key==='Enter') confirmJoin()">
+    </div>
+    <p id="pw-modal-error" style="color:#dc3545;font-size:13px;margin-bottom:12px;display:none;">パスワードが違います</p>
+    <div style="display:flex;gap:8px;">
+      <button onclick="confirmJoin()" class="btn-primary" style="flex:1;">参加する</button>
+      <button onclick="closePwModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://hmfbbpglitxggrfxghsd.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZmJicGdsaXR4Z2dyZnhnaHNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NzQ4ODAsImV4cCI6MjA5MTU1MDg4MH0.lM2QipgSzFuHqS-IQ5_CndIBTiMQd43kvdMCXLcAkSA'
@@ -56,6 +76,8 @@ let user = null
 let currentDate = new Date()
 let myLives = []
 let allLives = []
+let pendingJoinLiveId = null
+let pendingJoinDlPassword = null
 
 async function init() {
   const { data: { session } } = await sb.auth.getSession()
@@ -70,7 +92,7 @@ async function init() {
 
 async function fetchData() {
   const { data: lives } = await sb.from('lives').select('*').eq('hidden', false).order('date')
-allLives = lives || []
+  allLives = lives || []
   const { data: sl } = await sb.from('staff_lives').select('live_id').eq('user_id', user.id)
   const myIds = (sl || []).map(s => s.live_id)
   myLives = allLives.filter(l => myIds.includes(l.id))
@@ -135,7 +157,7 @@ function renderLiveList() {
             <p style="font-weight:500;font-size:14px;">${l.name}</p>
             <p class="hint">${l.date || '日程未定'}</p>
           </div>
-          <button onclick="${isIn ? `removeStaffLive('${l.id}')` : `addStaffLive('${l.id}')`}" class="btn-sm ${isIn ? 'btn-danger' : ''}">
+          <button onclick="${isIn ? `removeStaffLive('${l.id}')` : `requestJoin('${l.id}','${(l.dl_password||'').replace(/'/g,"\\'")}') `}" class="btn-sm ${isIn ? 'btn-danger' : ''}">
             ${isIn ? '外れる' : '参加する'}
           </button>
         </div>`
@@ -143,9 +165,38 @@ function renderLiveList() {
     : '<p class="hint">ライブがまだありません</p>'
 }
 
-async function addStaffLive(liveId) {
-  await sb.from('staff_lives').insert({ user_id: user.id, live_id: liveId })
-  await fetchData(); renderCalendar(); renderLiveList()
+// 参加前にパスワードを確認
+function requestJoin(liveId, dlPassword) {
+  pendingJoinLiveId = liveId
+  pendingJoinDlPassword = dlPassword
+  document.getElementById('pw-modal-input').value = ''
+  document.getElementById('pw-modal-error').style.display = 'none'
+  document.getElementById('pw-modal').style.display = 'flex'
+}
+
+function closePwModal() {
+  document.getElementById('pw-modal').style.display = 'none'
+  pendingJoinLiveId = null
+  pendingJoinDlPassword = null
+}
+
+async function confirmJoin() {
+  const input = document.getElementById('pw-modal-input').value
+  if (pendingJoinDlPassword && input !== pendingJoinDlPassword) {
+    document.getElementById('pw-modal-error').style.display = 'block'
+    return
+  }
+  document.getElementById('pw-modal').style.display = 'none'
+  await sb.from('staff_lives').insert({
+    user_id: user.id,
+    live_id: pendingJoinLiveId,
+    verified: true
+  })
+  pendingJoinLiveId = null
+  pendingJoinDlPassword = null
+  await fetchData()
+  renderCalendar()
+  renderLiveList()
 }
 
 async function removeStaffLive(liveId) {
